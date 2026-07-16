@@ -1,0 +1,72 @@
+/* src/theme.css
+   Shared design tokens and base styles used by BOTH the Student app
+   and the OSAS app. Page-specific files only add layout rules on top
+   of this -- colors, fonts, and components stay consistent across
+   both logins so the product still feels like one system. */
+
+:root{
+  --ink:#1c2b24;
+  --paper:#f6f4ee;
+  --moss:#2f5d4f;
+  --moss-dark:#203f36;
+  --pin:#c1502e;
+  --pin-soft:#f0d9cf;
+  --line:#d9d3c4;
+  --ok:#3c7a5c;
+  --warn:#c1502e;
+  --card:#ffffff;
+  --font-display:'Spectral', Georgia, serif;
+  --font-body:'Inter', system-ui, sans-serif;
+  --font-mono:'JetBrains Mono', monospace;
+}
+
+*{box-sizing:border-box; margin:0; padding:0;}
+html,body,#root{height:100%;}
+body{
+  font-family:var(--font-body);
+  background:var(--paper);
+  color:var(--ink);
+  -webkit-font-smoothing:antialiased;
+}
+
+.brand-mark{
+  display:flex; align-items:center; gap:10px;
+  font-family:var(--font-mono); letter-spacing:.12em; font-size:12px; text-transform:uppercase;
+}
+.pin-dot{width:9px;height:9px;border-radius:50%; background:var(--pin); box-shadow:0 0 0 4px rgba(193,80,46,.25);}
+
+.btn{
+  padding:9px 16px; border-radius:8px; border:1px solid var(--line); background:var(--card);
+  font-size:13px; font-weight:600; cursor:pointer; font-family:var(--font-body); color:var(--ink);
+}
+.btn.primary{background:var(--moss-dark); color:#f3efe4; border:none;}
+.btn.primary:hover{background:var(--moss);}
+.btn:disabled{opacity:.5; cursor:not-allowed;}
+
+.card{background:var(--card); border:1px solid var(--line); border-radius:14px; padding:20px;}
+
+.field{margin-bottom:16px;}
+.field label{display:block; font-size:12.5px; font-weight:600; color:#544f43; margin-bottom:6px;}
+.field input, .field select, .field textarea{
+  width:100%; padding:11px 13px; border:1px solid var(--line); border-radius:9px;
+  font-size:14px; font-family:var(--font-body); background:#fffefb;
+}
+.field input:focus, .field select:focus, .field textarea:focus{outline:none; border-color:var(--moss);}
+.field textarea{resize:vertical; min-height:70px;}
+
+.badge{display:inline-block; padding:3px 9px; border-radius:20px; font-size:11px; font-weight:600;}
+.badge.ok{background:#e1f0e6; color:var(--ok);}
+.badge.warn{background:var(--pin-soft); color:var(--pin);}
+.badge.pending{background:#eee7d2; color:#8a6d2f;}
+
+.error-banner{
+  background:var(--pin-soft); color:#7a3a23; padding:10px 14px; border-radius:8px;
+  font-size:13px; margin-bottom:14px;
+}
+
+.loading-text{font-size:13px; color:#857d6c; padding:20px 0;}
+
+table{width:100%; border-collapse:collapse; font-size:13px;}
+th{text-align:left; font-size:11px; text-transform:uppercase; letter-spacing:.04em; color:#857d6c; padding:8px 10px; border-bottom:1px solid var(--line);}
+td{padding:10px 10px; border-bottom:1px solid #ece7da;}
+tr:last-child td{border-bottom:none;}

@@ -1,0 +1,124 @@
+/* src/pages/osas/osas.css
+   Desktop web-dashboard feel for the OSAS side of GeoTrack:
+   sidebar + main content area, full-width tables and stat cards. */
+
+.osas-login-wrap{
+  min-height:100vh; display:flex; align-items:center; justify-content:center; padding:32px;
+}
+.osas-login-card{
+  display:grid; grid-template-columns:1fr 1fr; max-width:920px; width:100%;
+  background:var(--card); border:1px solid var(--line); border-radius:18px; overflow:hidden;
+  box-shadow:0 30px 60px -30px rgba(28,43,36,.35);
+}
+.osas-login-brand{
+  background:
+    radial-gradient(circle at 30% 20%, rgba(193,80,46,.35), transparent 45%),
+    linear-gradient(165deg,var(--moss-dark),var(--moss) 70%);
+  color:#f3efe4; padding:48px 40px; display:flex; flex-direction:column; justify-content:space-between;
+  position:relative; overflow:hidden;
+}
+.osas-login-brand::after{
+  content:""; position:absolute; right:-60px; bottom:-60px; width:220px; height:220px;
+  border:1px dashed rgba(243,239,228,.25); border-radius:50%;
+}
+.osas-brand-title{font-family:var(--font-display); font-size:36px; line-height:1.1; margin-top:28px; font-weight:600;}
+.osas-brand-sub{margin-top:14px; font-size:14.5px; line-height:1.55; color:#cfe0d7; max-width:320px;}
+.osas-brand-coords{
+  font-family:var(--font-mono); font-size:11px; color:#a9c4b6; letter-spacing:.05em;
+  border-top:1px solid rgba(243,239,228,.18); padding-top:16px; margin-top:32px;
+}
+.osas-login-form{padding:48px 40px; display:flex; flex-direction:column; justify-content:center;}
+.osas-login-toggle{text-align:center; font-size:12.5px; color:#6b6457; margin-top:16px;}
+.osas-login-toggle button{
+  background:none; border:none; color:var(--moss); font-weight:700; cursor:pointer; font-size:12.5px;
+  font-family:var(--font-body); padding:0;
+}
+.form-eyebrow{font-family:var(--font-mono); font-size:11px; letter-spacing:.14em; text-transform:uppercase; color:var(--moss); margin-bottom:8px;}
+.form-title{font-family:var(--font-display); font-size:26px; font-weight:600; margin-bottom:6px;}
+.form-hint{font-size:13.5px; color:#6b6457; margin-bottom:28px;}
+.scope-note{margin-top:18px; padding:10px 12px; background:#eef1e9; border-radius:8px; font-size:12px; color:#54624f; line-height:1.5;}
+.scope-note a{color:var(--moss-dark); font-weight:700;}
+
+/* ---------- dashboard shell ---------- */
+.osas-shell{display:flex; min-height:100vh;}
+.osas-sidebar{
+  width:240px; flex-shrink:0; background:var(--moss-dark); color:#e9f1ec;
+  padding:28px 18px; display:flex; flex-direction:column;
+}
+.osas-sidebar .brand-mark{color:#cfe0d7; margin-bottom:30px;}
+.osas-nav-item{
+  display:flex; align-items:center; gap:10px; padding:10px 12px; border-radius:8px;
+  font-size:13.5px; font-weight:500; color:#c7d9cf; cursor:pointer; margin-bottom:4px;
+  text-decoration:none; transition:background .15s ease;
+}
+.osas-nav-item .dot{width:6px; height:6px; border-radius:50%; background:#7fa291; flex-shrink:0;}
+.osas-nav-item:hover{background:rgba(255,255,255,.06);}
+.osas-nav-item.active{background:rgba(255,255,255,.12); color:#fff;}
+.osas-nav-item.active .dot{background:var(--pin);}
+.osas-sidebar-spacer{flex:1;}
+.role-pill{
+  font-family:var(--font-mono); font-size:10.5px; letter-spacing:.08em; text-transform:uppercase;
+  color:#a9c4b6; border:1px solid rgba(255,255,255,.18); border-radius:6px; padding:6px 10px; margin-bottom:10px;
+}
+.osas-logout-btn{
+  background:transparent; border:1px solid rgba(255,255,255,.2); color:#e9f1ec;
+  padding:9px; border-radius:8px; font-size:13px; cursor:pointer; font-family:var(--font-body);
+}
+.osas-logout-btn:hover{background:rgba(255,255,255,.08);}
+
+.osas-main{flex:1; padding:32px 40px; overflow-y:auto; max-height:100vh;}
+.osas-main-head{display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:28px; flex-wrap:wrap; gap:16px;}
+.osas-main-title{font-family:var(--font-display); font-size:28px; font-weight:600;}
+.osas-main-sub{font-size:13.5px; color:#6b6457; margin-top:4px;}
+.osas-user-chip{
+  display:flex; align-items:center; gap:10px; background:var(--card); border:1px solid var(--line);
+  padding:8px 14px; border-radius:30px; font-size:13px;
+}
+.osas-avatar{
+  width:28px; height:28px; border-radius:50%; background:var(--moss); color:#fff;
+  display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:700; font-family:var(--font-display);
+}
+
+.osas-grid{display:grid; gap:18px;}
+.osas-stat-row{grid-template-columns:repeat(4,1fr); margin-bottom:24px;}
+.osas-stat-card .stat-label{font-size:12px; color:#857d6c; font-weight:600; text-transform:uppercase; letter-spacing:.04em;}
+.osas-stat-card .stat-num{font-family:var(--font-display); font-size:30px; font-weight:600; margin-top:6px;}
+.osas-stat-card .stat-tag{font-size:11.5px; margin-top:6px; color:var(--ok);}
+.osas-stat-card .stat-tag.warn{color:var(--warn);}
+
+.panel-title{font-family:var(--font-display); font-size:17px; font-weight:600; margin-bottom:14px;}
+.osas-two-col{grid-template-columns:1.3fr 1fr;}
+
+.review-item{padding:13px 0; border-bottom:1px solid #ece7da;}
+.review-item:last-child{border-bottom:none;}
+.review-top{display:flex; justify-content:space-between; align-items:center;}
+.review-name{font-size:12.5px; font-weight:700; color:#544f43;}
+.review-stars{font-size:13px; color:#c98a4b; letter-spacing:1px;}
+.review-text{font-size:13px; color:#544f43; line-height:1.5; margin-top:5px;}
+.review-empty{font-size:13px; color:#a39c8a; padding:8px 0;}
+
+.osas-form-grid{display:grid; grid-template-columns:1fr 1fr; gap:14px;}
+
+/* Tints the default blue Leaflet pin red for flagged students on the
+   geo-map -- avoids needing a second custom marker image asset. */
+.geotrack-marker-flagged{
+  filter: hue-rotate(140deg) saturate(1.4);
+}
+
+@media print{
+  .osas-sidebar, .no-print{ display:none !important; }
+  .osas-main{ padding:0; overflow:visible; max-height:none; }
+  .osas-shell{ display:block; }
+  #tally-report-printable{ border:none; box-shadow:none; }
+}
+
+@media (max-width:880px){
+  .osas-login-card{grid-template-columns:1fr;}
+  .osas-login-brand{display:none;}
+  .osas-shell{flex-direction:column;}
+  .osas-sidebar{width:100%; flex-direction:row; align-items:center; overflow-x:auto;}
+  .osas-sidebar-spacer{display:none;}
+  .osas-main{padding:20px;}
+  .osas-stat-row{grid-template-columns:1fr 1fr;}
+  .osas-two-col{grid-template-columns:1fr;}
+}
