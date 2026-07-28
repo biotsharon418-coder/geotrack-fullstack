@@ -139,6 +139,21 @@ export default function StudentLogin() {
         });
       }
       if (session.role !== "student") { setError("This account is not registered as a student."); setLoading(false); return; }
+
+      // 2FA required — go to TOTP verification (no session stored yet)
+      if (session.requires_2fa) {
+        navigate("/student/2fa-verify", { state: { pendingToken: session.pending_token, role: session.role } });
+        return;
+      }
+
+      // OTP email verification required for new registrations
+      if (session.requires_otp) {
+        // Store token so protected routes work after verification
+        api.setSession({ access_token: session.access_token, role: session.role, full_name: session.full_name });
+        navigate("/student/verify-otp", { state: { email, demoOtp: session.pending_token } });
+        return;
+      }
+
       login(session);
       navigate("/student/home");
     } catch (err) {

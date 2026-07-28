@@ -1,175 +1,158 @@
-# GeoTrack — Deployment Guide
-Deploy backend to Railway (free), frontend to Vercel (free).
-Student app = mobile-friendly URL · OSAS app = separate URL · Same backend/DB.
+# GeoTrack v3 — Deployment Guide
+## Your live URLs
+- Student app: https://geotrack-lspu.vercel.app/student/login
+- OSAS admin:  https://geotrack-lspu.vercel.app/osas/login
 
 ---
 
-## STEP 1 — Push to GitHub (do this first)
+## How to push updates to the live site
+
+Since you're already deployed on Railway + Vercel, updating is just:
 
 ```powershell
-# In your project folder
-git init
+# 1. Make sure you are in the geotrack-fullstack folder
+cd geotrack-fullstack
+
+# 2. Stage all changes
 git add .
-git commit -m "Initial GeoTrack deploy"
+
+# 3. Commit with a message describing what changed
+git commit -m "Add 2FA, OTP, audit logs, charts, export"
+
+# 4. Push — Railway and Vercel will auto-deploy within ~2 minutes
+git push
 ```
 
-Create a new repo at https://github.com/new (name it geotrack-fullstack, keep it Public).
+That's it. Both Railway (backend) and Vercel (frontend) watch your
+GitHub repo and redeploy automatically on every push.
+
+---
+
+## New environment variables needed in Railway
+
+Go to Railway → your project → Variables and add:
+
+| Variable | Value |
+|---|---|
+| `SECRET_KEY` | (already set — keep it) |
+| `ALLOWED_ORIGINS` | `https://geotrack-lspu.vercel.app` |
+| `DATABASE_URL` | (auto-set by Railway PostgreSQL — keep it) |
+
+No new env vars needed in Vercel.
+
+---
+
+## After pushing — seed the production database
+
+Open the Railway shell (or use the Railway CLI):
 
 ```powershell
-git remote add origin https://github.com/YOUR_USERNAME/geotrack-fullstack.git
-git branch -M main
-git push -u origin main
-```
-
----
-
-## STEP 2 — Deploy Backend to Railway
-
-1. Go to https://railway.app → sign up with GitHub
-2. Click **New Project** → **Deploy from GitHub repo** → select `geotrack-fullstack`
-3. Railway will detect the `backend/` folder. If asked for root directory, enter `backend`
-4. Add a **PostgreSQL** plugin:
-   - In your Railway project, click **+ New** → **Database** → **Add PostgreSQL**
-   - Railway automatically sets `DATABASE_URL` in your backend service — nothing to copy
-5. Set these environment variables in Railway (Settings → Variables):
-
-   | Variable | Value |
-   |---|---|
-   | `SECRET_KEY` | (generate: `python -c "import secrets; print(secrets.token_hex(32))"`) |
-   | `ALLOWED_ORIGINS` | (fill in after Step 3 once you have Vercel URLs) |
-   | `PORT` | `8000` |
-
-6. Click **Deploy** — wait ~2 minutes
-7. Copy your Railway URL: looks like `https://geotrack-production-xxxx.up.railway.app`
-
----
-
-## STEP 3 — Deploy Student App to Vercel
-
-The student app is the same React app accessed via `/student/...` routes.
-
-1. Go to https://vercel.com → sign up with GitHub
-2. Click **Add New Project** → import `geotrack-fullstack`
-3. Set **Root Directory** to `frontend`
-4. Add Environment Variable:
-
-   | Variable | Value |
-   |---|---|
-   | `VITE_API_URL` | `https://YOUR_RAILWAY_URL.up.railway.app/api` |
-
-5. Click **Deploy**
-6. Once deployed, go to **Settings → Domains** and add a custom subdomain like:
-   `geotrack-student.vercel.app`
-7. Copy this URL — students use: `https://geotrack-student.vercel.app/student/login`
-
----
-
-## STEP 4 — Deploy OSAS Admin App to Vercel
-
-The OSAS web app is the SAME codebase, just a second Vercel deployment pointing at `/osas/...` routes.
-
-1. In Vercel, click **Add New Project** again → import `geotrack-fullstack` again
-2. Set **Root Directory** to `frontend` (same as before)
-3. Add the SAME environment variable:
-
-   | Variable | Value |
-   |---|---|
-   | `VITE_API_URL` | `https://YOUR_RAILWAY_URL.up.railway.app/api` |
-
-4. Click **Deploy**
-5. Go to **Settings → Domains** → rename to `geotrack-osas.vercel.app`
-6. OSAS staff use: `https://geotrack-osas.vercel.app/osas/login`
-
----
-
-## STEP 5 — Update CORS in Railway
-
-Now that you have both Vercel URLs, go back to Railway and update `ALLOWED_ORIGINS`:
-
-```
-ALLOWED_ORIGINS=https://geotrack-student.vercel.app,https://geotrack-osas.vercel.app
-```
-
-Click **Redeploy** in Railway.
-
----
-
-## STEP 6 — Seed the production database
-
-Open the Railway backend shell (or use the /docs endpoint) and run:
-
-```bash
-# In Railway shell or via railway CLI:
-python seed.py
-```
-
-Or POST directly to the API:
-```
-POST https://YOUR_RAILWAY_URL.up.railway.app/api/auth/register/osas
-{
-  "full_name": "Ms. Reyes",
-  "email": "reyes.osas@lspu.edu.ph",
-  "password": "YourStrongPassword1!"
-}
-```
-
----
-
-## Final URLs
-
-| Who | URL | What they see |
-|---|---|---|
-| Students | `https://geotrack-student.vercel.app/student/login` | Mobile-style boarding house app |
-| OSAS Admin | `https://geotrack-osas.vercel.app/osas/login` | Full web dashboard |
-| API Docs | `https://YOUR_RAILWAY_URL.up.railway.app/docs` | Interactive API explorer |
-
----
-
-## Powershell commands summary (Windows)
-
-```powershell
-# Install Railway CLI
+# Install Railway CLI if you don't have it yet
 npm install -g @railway/cli
 
 # Login
 railway login
 
-# Check your deployment status
-railway status
-
-# View logs
-railway logs
-
-# Open shell to run seed.py
+# Open a shell in your backend service
 railway shell
+
+# Inside the Railway shell:
 python seed.py
+```
+
+Or call the API directly to create the first OSAS account:
+```
+POST https://YOUR_RAILWAY_URL/api/auth/register/osas
+Body: {
+  "full_name": "Ms. Reyes",
+  "email": "reyes.osas@lspu.edu.ph",
+  "password": "YourPass1!"
+}
 ```
 
 ---
 
-## Forgot Password — How it works in production
+## What's new in v3
 
-In the school demo, the reset token is shown on screen.
-In production, connect an email service:
+### Security
+- **Account lockout** — 5 failed login attempts locks the account for 5 minutes
+- **Email OTP verification** — new student accounts must verify their email with a 6-digit code before the account is active. In production, wire up SendGrid (see below). In the school demo the code is shown on screen.
+- **Two-Factor Authentication (2FA / TOTP)** — students can enable 2FA in their profile using any authenticator app (Google Authenticator, Authy, etc.)
+- **Session timeout** — OSAS admins are automatically signed out after 15 minutes of inactivity, with a 1-minute warning popup
+- **Password policy** — 8–12 characters, must have uppercase, lowercase, number, and special character
+- **Forgot password** — generates a reset token (emailed in production via SendGrid, shown on screen in the demo)
 
-1. Sign up at https://sendgrid.com (free 100 emails/day)
-2. Add `SENDGRID_API_KEY` to Railway env vars
-3. In `main.py`, replace the `# In production: send email here` comment with:
+### Dashboard
+- **4 stat cards** — total students, updates submitted, flagged, pending verifications
+- **Pie charts** — students by gender, monthly status breakdown
+- **Bar charts** — students by department, students by barangay
+- **Geo-map** — real Leaflet/OpenStreetMap with student boarding house pins
+- **Latest activities** — last 10 audit log entries shown on the dashboard
+- **Flagged students panel** — list with reason
+
+### Activity logs (Audit trail)
+- Every action is recorded: who created, updated, deleted, flagged, verified, archived, exported
+- Searchable and filterable by action type and resource type
+- Accessible via the "Activity logs" sidebar item
+
+### Student status monitor
+- **Search** — filter by student name or email
+- **Checkbox filters** — Verified / Pending / Flagged / Male / Female / Month
+
+### Reports
+- **Multi-select groupings** — check any combination of Barangay, Boarding house, Gender, Department, Monthly status
+- **Charts inside the report** — pie chart (≤5 groups) or bar chart (>5 groups) per section
+- **Report preview** before downloading
+- **Export formats** — PDF (formatted table), Excel (.xlsx), CSV
+- **Print** — browser native print, sidebar and controls hidden
+
+### Boarding house verification
+- Boarding houses are submitted by students at sign-up (no manual OSAS registration form)
+- OSAS can verify, edit (with Nominatim address geocoding), view inline reviews, delete
+
+---
+
+## Connecting real email (SendGrid) for OTP and password reset
+
+1. Sign up at https://sendgrid.com (free: 100 emails/day)
+2. Create an API key in SendGrid dashboard
+3. Add `SENDGRID_API_KEY` to Railway environment variables
+4. In `backend/main.py`, find the comment `# In production: send email here` and replace with:
 
 ```python
 import sendgrid
 from sendgrid.helpers.mail import Mail
-
 sg = sendgrid.SendGridAPIClient(os.getenv("SENDGRID_API_KEY"))
-message = Mail(
-    from_email="noreply@geotrack.lspu.edu.ph",
+sg.send(Mail(
+    from_email="noreply@geotrack-lspu.edu.ph",
     to_emails=user.email,
-    subject="GeoTrack — Password Reset",
-    html_content=f"""
-        <p>Click this link to reset your password (expires in 1 hour):</p>
-        <p><a href="https://geotrack-student.vercel.app/student/reset-password?token={token}">
-        Reset my password</a></p>
-    """
-)
-sg.send(message)
+    subject="GeoTrack — Verify your email",
+    html_content=f"<p>Your verification code is: <strong>{otp}</strong></p><p>Expires in 15 minutes.</p>"
+))
 ```
+
+5. Do the same for the password reset token endpoint.
+
+---
+
+## Local development (no changes from before)
+
+```powershell
+# Backend
+cd backend
+python -m venv venv
+venv\Scripts\activate
+pip install -r requirements.txt
+python seed.py
+uvicorn main:app --reload
+
+# Frontend (separate terminal)
+cd frontend
+npm install
+npm run dev
+```
+
+Local URLs:
+- Student: http://localhost:5173/student/login
+- OSAS:    http://localhost:5173/osas/login
+- API docs: http://127.0.0.1:8000/docs

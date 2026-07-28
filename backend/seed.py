@@ -1,7 +1,4 @@
-"""
-seed.py — populate geotrack.db with sample data.
-Run once: python seed.py
-"""
+"""seed.py — populate geotrack.db with sample data. Run once: python seed.py"""
 from database import SessionLocal, engine, Base
 import models
 from auth import hash_password
@@ -11,10 +8,10 @@ Base.metadata.create_all(bind=engine)
 db = SessionLocal()
 
 if db.query(models.User).count() == 0:
-    juan  = models.User(full_name="Juan Dela Cruz",  email="0323-4198@lspu.edu.ph",  hashed_password=hash_password("Student1!"),  role="student",    course_section="BSIT-3A", gender="male")
-    maria = models.User(full_name="Maria Santos",    email="0421-5512@lspu.edu.ph",    hashed_password=hash_password("Student1!"),  role="student",    course_section="BSIT-3A", gender="female")
-    pedro = models.User(full_name="Pedro Bautista",  email="0318-7743@lspu.edu.ph",  hashed_password=hash_password("Student1!"),  role="student",    course_section="BSIT-2B", gender="male")
-    admin = models.User(full_name="Ms. Reyes",       email="reyes.osas@lspu.edu.ph",       hashed_password=hash_password("OsasAdmin1!"), role="osas_admin", position="OSAS Head")
+    juan  = models.User(full_name="Juan Dela Cruz",  email="0323-4198@lspu.edu.ph", hashed_password=hash_password("Student1!"),  role="student",    course_section="BSIT-3A", gender="male",   is_email_verified=True)
+    maria = models.User(full_name="Maria Santos",    email="0421-5512@lspu.edu.ph", hashed_password=hash_password("Student1!"),  role="student",    course_section="BSIT-3A", gender="female", is_email_verified=True)
+    pedro = models.User(full_name="Pedro Bautista",  email="0318-7743@lspu.edu.ph", hashed_password=hash_password("Student1!"),  role="student",    course_section="BSIT-2B", gender="male",   is_email_verified=True)
+    admin = models.User(full_name="Ms. Reyes",       email="reyes.osas@lspu.edu.ph",hashed_password=hash_password("OsasAdmin1!"),role="osas_admin", position="OSAS Head",     is_email_verified=True)
     db.add_all([juan, maria, pedro, admin]); db.commit()
 
     h1 = models.BoardingHouse(name="Sto. Niño Lodge",  barangay="Brgy. Del Remedio", monthly_rate=1800, latitude=14.0712, longitude=121.3204, is_verified=True,  submitted_by="Student — Juan Dela Cruz")
@@ -30,14 +27,15 @@ if db.query(models.User).count() == 0:
         models.StatusUpdate(student_id=juan.id,  boarding_house_id=h1.id, status_type="same", month_label=month),
         models.StatusUpdate(student_id=maria.id, boarding_house_id=h3.id, status_type="same", month_label=month),
         models.StatusUpdate(student_id=pedro.id, boarding_house_id=h2.id, status_type="same", month_label=month, is_flagged=True, flag_reason="No update for 2 months prior"),
+        models.AuditLog(actor_name="System", actor_role="system", action="create", resource_type="user", resource_label="Seed data", detail="Initial seed data created"),
     ])
     db.commit()
-
     print("Seed data created:")
     print("  Students:  0323-4198@lspu.edu.ph / Student1!")
     print("             0421-5512@lspu.edu.ph / Student1!")
     print("             0318-7743@lspu.edu.ph / Student1!  (flagged)")
     print("  OSAS:      reyes.osas@lspu.edu.ph / OsasAdmin1!")
+    print("\n  Note: Passwords are 8–12 chars, uppercase, lowercase, number, special char.")
 else:
     print("Database already seeded — skipping.")
 
