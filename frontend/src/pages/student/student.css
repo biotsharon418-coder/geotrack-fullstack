@@ -88,3 +88,39 @@
 
 .back-row{display:flex; align-items:center; gap:10px;}
 .back-row button{background:none; border:none; font-size:18px; cursor:pointer; padding:0 4px;}
+
+/* ---------- responsive: tablets & small laptops ---------- */
+@media (max-width:900px){
+  .student-shell{padding:16px;}
+  .student-phone{max-width:460px;}
+}
+
+/* ---------- responsive: phones ----------
+   Below ~560px the "phone inside a card" look stops making sense --
+   the browser viewport already IS a phone screen, so the app should
+   fill it edge-to-edge instead of floating a small rounded card with
+   big margins around it. */
+@media (max-width:560px){
+  .student-login-wrap{padding:0; align-items:stretch;}
+  .student-login-card{
+    max-width:100%; min-height:100vh; border-radius:0;
+    display:flex; flex-direction:column; justify-content:center;
+    padding:28px 20px;
+  }
+
+  .student-shell{padding:0; min-height:100vh;}
+  .student-phone{
+    max-width:100%; width:100%; min-height:100vh; border-radius:0; box-shadow:none;
+  }
+  .student-header{padding:20px 16px 10px;}
+  .student-body{padding:6px 16px 18px;}
+  .form-title{font-size:21px;}
+  .bottom-nav{padding-bottom:calc(14px + env(safe-area-inset-bottom, 0px));}
+}
+
+/* ---------- responsive: very narrow phones (~320-360px) ---------- */
+@media (max-width:360px){
+  .student-header h2{font-size:19px;}
+  .pill-row{flex-wrap:wrap;}
+  .nav-btn{font-size:9px;}
+}

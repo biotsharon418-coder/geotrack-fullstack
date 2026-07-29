@@ -25,6 +25,7 @@ app = FastAPI(title="GeoTrack API", version="3.0.0")
 
 _origins_env = os.getenv("ALLOWED_ORIGINS", "")
 ALLOWED_ORIGINS = [o.strip() for o in _origins_env.split(",") if o.strip()] or ["*"]
+print("ALLOWED_ORIGINS =", ALLOWED_ORIGINS)
 app.add_middleware(CORSMiddleware, allow_origins=ALLOWED_ORIGINS,
                    allow_credentials=True, allow_methods=["*"], allow_headers=["*"])
 
@@ -446,7 +447,9 @@ def all_status_updates(
         if not u.student: continue
         if search and search.lower() not in u.student.full_name.lower() and search.lower() not in u.student.email.lower(): continue
         if gender and (u.student.gender or "").lower() != gender.lower(): continue
-        if is_verified is not None and u.boarding_house and u.boarding_house.is_verified != is_verified: continue
+        if is_verified is not None:
+            bh_verified = bool(u.boarding_house and u.boarding_house.is_verified)
+            if bh_verified != is_verified: continue
         results.append(schemas.StatusUpdateAdminOut(
             id=u.id, status_type=u.status_type,
             new_boarding_house_name=u.new_boarding_house_name, new_barangay=u.new_barangay,

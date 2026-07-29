@@ -92,13 +92,16 @@ export default function OsasDashboard() {
               <div className="panel-title">Students by gender</div>
               {stats.by_gender.length === 0
                 ? <div className="review-empty">No data yet.</div>
-                : <ResponsiveContainer width="100%" height={220}>
-                    <PieChart>
+                : <ResponsiveContainer width="100%" height={260}>
+                    <PieChart margin={{top:8,right:8,bottom:8,left:8}}>
                       <Pie data={stats.by_gender} dataKey="count" nameKey="label"
-                           cx="50%" cy="50%" outerRadius={80} label={({label,count})=>`${label}: ${count}`}>
+                           cx="50%" cy="46%" outerRadius={80}>
                         {stats.by_gender.map((_,i) => <Cell key={i} fill={COLORS[i%COLORS.length]} />)}
                       </Pie>
                       <Tooltip />
+                      <Legend verticalAlign="bottom" height={40}
+                        formatter={(value, entry) => `${value}: ${entry.payload.count}`}
+                        wrapperStyle={{ fontSize: 11, lineHeight: "16px" }} />
                     </PieChart>
                   </ResponsiveContainer>
               }
@@ -138,14 +141,16 @@ export default function OsasDashboard() {
               <div className="panel-title">Monthly status breakdown</div>
               {stats.by_status.length === 0
                 ? <div className="review-empty">No status updates yet.</div>
-                : <ResponsiveContainer width="100%" height={220}>
-                    <PieChart>
+                : <ResponsiveContainer width="100%" height={260}>
+                    <PieChart margin={{top:8,right:8,bottom:8,left:8}}>
                       <Pie data={stats.by_status} dataKey="count" nameKey="label"
-                           cx="50%" cy="50%" innerRadius={50} outerRadius={80}
-                           label={({label,count})=>`${label}: ${count}`}>
+                           cx="50%" cy="46%" innerRadius={45} outerRadius={80}>
                         {stats.by_status.map((_,i) => <Cell key={i} fill={COLORS[i%COLORS.length]} />)}
                       </Pie>
-                      <Tooltip /><Legend />
+                      <Tooltip />
+                      <Legend verticalAlign="bottom" height={40}
+                        formatter={(value, entry) => `${value}: ${entry.payload.count}`}
+                        wrapperStyle={{ fontSize: 11, lineHeight: "16px" }} />
                     </PieChart>
                   </ResponsiveContainer>
               }

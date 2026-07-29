@@ -115,14 +115,16 @@ export default function OsasReports() {
                   {sec.rows.length === 0
                     ? <div className="review-empty">No data.</div>
                     : sec.rows.length <= 5
-                    ? <ResponsiveContainer width="100%" height={180}>
-                        <PieChart>
+                    ? <ResponsiveContainer width="100%" height={240}>
+                        <PieChart margin={{top:8,right:8,bottom:8,left:8}}>
                           <Pie data={sec.rows} dataKey="count" nameKey="group_label"
-                            cx="50%" cy="50%" outerRadius={70}
-                            label={({group_label,count})=>`${group_label}: ${count}`}>
+                            cx="50%" cy="46%" outerRadius={75}>
                             {sec.rows.map((_,i)=><Cell key={i} fill={COLORS[i%COLORS.length]}/>)}
                           </Pie>
-                          <Tooltip /><Legend />
+                          <Tooltip formatter={(value, name) => [value, name]} />
+                          <Legend verticalAlign="bottom" height={48}
+                            formatter={(value, entry) => `${value}: ${entry.payload.count}`}
+                            wrapperStyle={{ fontSize: 11, lineHeight: "16px" }} />
                         </PieChart>
                       </ResponsiveContainer>
                     : <ResponsiveContainer width="100%" height={180}>

@@ -49,7 +49,7 @@ body{
 .field label{display:block; font-size:12.5px; font-weight:600; color:#544f43; margin-bottom:6px;}
 .field input, .field select, .field textarea{
   width:100%; padding:11px 13px; border:1px solid var(--line); border-radius:9px;
-  font-size:14px; font-family:var(--font-body); background:#fffefb;
+  font-size:16px; font-family:var(--font-body); background:#fffefb;
 }
 .field input:focus, .field select:focus, .field textarea:focus{outline:none; border-color:var(--moss);}
 .field textarea{resize:vertical; min-height:70px;}
@@ -66,7 +66,14 @@ body{
 
 .loading-text{font-size:13px; color:#857d6c; padding:20px 0;}
 
-table{width:100%; border-collapse:collapse; font-size:13px;}
+.table-scroll{width:100%; overflow-x:auto; -webkit-overflow-scrolling:touch;}
+table{width:100%; min-width:420px; border-collapse:collapse; font-size:13px;}
 th{text-align:left; font-size:11px; text-transform:uppercase; letter-spacing:.04em; color:#857d6c; padding:8px 10px; border-bottom:1px solid var(--line);}
-td{padding:10px 10px; border-bottom:1px solid #ece7da;}
+td{padding:10px 10px; border-bottom:1px solid #ece7da; word-break:break-word;}
 tr:last-child td{border-bottom:none;}
+
+/* ---------- global small-screen adjustments (phones & small tablets) ---------- */
+@media (max-width:600px){
+  .card{padding:16px;}
+  .btn{padding:10px 14px;}
+}

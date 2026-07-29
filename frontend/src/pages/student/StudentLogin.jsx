@@ -39,17 +39,6 @@ function emailHint(email) {
   return { ok: true, msg: "✓ LSPU student ID email accepted" };
 }
 
-async function geocode(address) {
-  const q = `${address}, San Pablo City, Laguna, Philippines`;
-  const res = await fetch(
-    `https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(q)}`,
-    { headers: { "Accept-Language": "en" } }
-  );
-  if (!res.ok) throw new Error("Address lookup failed.");
-  const data = await res.json();
-  return data.length ? { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon), displayName: data[0].display_name } : null;
-}
-
 const TERMS = `GEOTRACK — STUDENT DATA PRIVACY TERMS
 
 By creating a GeoTrack account, you agree to the following:
@@ -89,10 +78,6 @@ export default function StudentLogin() {
   const [gender, setGender] = useState("");
   const [bhName, setBhName] = useState("");
   const [bhBarangay, setBhBarangay] = useState("");
-  const [bhAddress, setBhAddress] = useState("");
-  const [geocoding, setGeocoding] = useState(false);
-  const [pinnedLocation, setPinnedLocation] = useState(null);
-  const [geocodeError, setGeocodeError] = useState("");
   const [termsOpen, setTermsOpen] = useState(false);
   const [termsAgreed, setTermsAgreed] = useState(false);
   const [error, setError] = useState("");
@@ -104,18 +89,6 @@ export default function StudentLogin() {
   const strength = getStrength(password);
   const emailOk = isLspu(email);
   const hint = emailHint(email);
-
-  async function handleFindLocation() {
-    if (!bhBarangay.trim()) { setGeocodeError("Enter at least a barangay."); return; }
-    setGeocoding(true); setGeocodeError(""); setPinnedLocation(null);
-    try {
-      const addr = bhAddress.trim() ? `${bhAddress}, ${bhBarangay}` : bhBarangay;
-      const res = await geocode(addr);
-      if (!res) setGeocodeError("Address not found. Try a more specific location.");
-      else setPinnedLocation(res);
-    } catch (e) { setGeocodeError(e.message); }
-    finally { setGeocoding(false); }
-  }
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -134,8 +107,8 @@ export default function StudentLogin() {
           gender: gender || null,
           boarding_house_name: bhName || null,
           boarding_house_barangay: bhBarangay || null,
-          boarding_house_latitude: pinnedLocation?.lat ?? null,
-          boarding_house_longitude: pinnedLocation?.lng ?? null,
+          boarding_house_latitude: null,
+          boarding_house_longitude: null,
         });
       }
       if (session.role !== "student") { setError("This account is not registered as a student."); setLoading(false); return; }
@@ -248,30 +221,17 @@ export default function StudentLogin() {
                 Your boarding house <span style={{ fontWeight:400, color:"#6b6457" }}>(optional but recommended)</span>
               </div>
               <p style={{ fontSize:11.5, color:"#6b6457", lineHeight:1.55, marginBottom:10 }}>
-                Adding it now lets OSAS see your location right away. You can add or update it later too.
+                Adding it now helps OSAS reach you faster. An OSAS staff member will confirm the exact
+                map location for you — you don't need to pin it yourself.
               </p>
               <div className="field">
                 <label>Boarding house name</label>
-                <input value={bhName} onChange={e => { setBhName(e.target.value); setPinnedLocation(null); }} placeholder="e.g. Sto. Niño Lodge" />
+                <input value={bhName} onChange={e => setBhName(e.target.value)} placeholder="e.g. Sto. Niño Lodge" />
               </div>
               <div className="field">
                 <label>Barangay</label>
-                <input value={bhBarangay} onChange={e => { setBhBarangay(e.target.value); setPinnedLocation(null); }} placeholder="e.g. Brgy. Del Remedio" />
+                <input value={bhBarangay} onChange={e => setBhBarangay(e.target.value)} placeholder="e.g. Brgy. Del Remedio" />
               </div>
-              <div className="field">
-                <label>Street / landmark <span style={{ color:"#a39c8a" }}>(optional)</span></label>
-                <input value={bhAddress} onChange={e => { setBhAddress(e.target.value); setPinnedLocation(null); }} placeholder="e.g. near SPC public market" />
-              </div>
-              <button type="button" className="btn" style={{ width:"100%", padding:10 }}
-                onClick={handleFindLocation} disabled={geocoding || !bhBarangay.trim()}>
-                {geocoding ? "Finding location…" : "Find location on map"}
-              </button>
-              {geocodeError && <div style={{ fontSize:11, color:"var(--pin)", marginTop:6 }}>{geocodeError}</div>}
-              {pinnedLocation && (
-                <div style={{ marginTop:8, padding:"7px 10px", background:"#e1f0e6", borderRadius:8, fontSize:11.5, color:"var(--ok)" }}>
-                  📍 Pinned: {pinnedLocation.displayName}
-                </div>
-              )}
             </div>
 
             <div style={{ marginBottom:14 }}>
