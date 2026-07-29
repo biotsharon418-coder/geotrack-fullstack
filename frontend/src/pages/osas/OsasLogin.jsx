@@ -37,12 +37,7 @@ export default function OsasLogin() {
       login(session);
       navigate("/osas/dashboard");
     } catch (err) {
-      const msg = err.message || "";
-      if (mode === "login" && (msg.includes("Incorrect") || msg.includes("401"))) {
-        setError("No account found with these credentials. Please check your details, or create an account.");
-      } else {
-        setError(msg);
-      }
+      setError(err.message || "Something went wrong. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -58,10 +53,10 @@ export default function OsasLogin() {
           <div>
             <div className="osas-brand-title">All off-campus students, one map.</div>
             <div className="osas-brand-sub">
-              Monitor monthly status updates, verify boarding houses, and generate reports — built for OSAS personnel.
+              Monitor monthly status updates, verify boarding houses, and generate reports â€” built for OSAS personnel.
             </div>
           </div>
-          <div className="osas-brand-coords">14.0683° N, 121.3250° E — SAN PABLO CITY · LSPU-SPCC</div>
+          <div className="osas-brand-coords">14.0683Â° N, 121.3250Â° E â€” SAN PABLO CITY Â· LSPU-SPCC</div>
         </div>
 
         <div className="osas-login-form">
@@ -87,7 +82,7 @@ export default function OsasLogin() {
             <div className="field">
               <label>Email</label>
               <input type="email" value={email} onChange={e => setEmail(e.target.value)}
-                placeholder="reyes.osas@lspu.edu.ph" required />
+                placeholder="lastname.osas@lspu.edu.ph" required />
             </div>
             <div className="field">
               <label>Password</label>
@@ -107,7 +102,7 @@ export default function OsasLogin() {
               )}
             </div>
             <button className="btn primary" style={{ width:"100%", padding:13 }} disabled={loading}>
-              {loading ? "Please wait…" : mode === "login" ? "Sign in" : "Create account"}
+              {loading ? "Please waitâ€¦" : mode === "login" ? "Sign in" : "Create account"}
             </button>
           </form>
 

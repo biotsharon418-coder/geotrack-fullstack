@@ -1,5 +1,5 @@
 """
-main.py — GeoTrack API v3
+main.py â€” GeoTrack API v3
 Features: 2FA, OTP email verification, audit logs, session timeout,
           account lockout, password policy, charts data, export endpoints.
 """
@@ -25,7 +25,6 @@ app = FastAPI(title="GeoTrack API", version="3.0.0")
 
 _origins_env = os.getenv("ALLOWED_ORIGINS", "")
 ALLOWED_ORIGINS = [o.strip() for o in _origins_env.split(",") if o.strip()] or ["*"]
-print("ALLOWED_ORIGINS =", ALLOWED_ORIGINS)
 app.add_middleware(CORSMiddleware, allow_origins=ALLOWED_ORIGINS,
                    allow_credentials=True, allow_methods=["*"], allow_headers=["*"])
 
@@ -35,7 +34,7 @@ ARCHIVE_YEARS = 3
 DELETE_YEARS = 5
 
 
-# ─── Helpers ─────────────────────────────────────────────────────────────────
+# â”€â”€â”€ Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 def log_action(db: Session, actor: Optional[models.User], action: str,
                resource_type: str, resource_id: Optional[int] = None,
                resource_label: Optional[str] = None, detail: Optional[str] = None):
@@ -68,7 +67,7 @@ def lifecycle_sweep(db: Session):
     db.commit()
 
 
-# ─── AUTH ─────────────────────────────────────────────────────────────────────
+# â”€â”€â”€ AUTH â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 @app.post("/api/auth/register/student", response_model=schemas.TokenResponse)
 def register_student(payload: schemas.RegisterStudentRequest, db: Session = Depends(get_db)):
     if db.query(models.User).filter(models.User.email == payload.email).first():
@@ -90,7 +89,7 @@ def register_student(payload: schemas.RegisterStudentRequest, db: Session = Depe
             house = models.BoardingHouse(
                 name=payload.boarding_house_name, barangay=payload.boarding_house_barangay,
                 latitude=payload.boarding_house_latitude, longitude=payload.boarding_house_longitude,
-                is_verified=False, submitted_by=f"Student — {user.full_name}")
+                is_verified=False, submitted_by=f"Student â€” {user.full_name}")
             db.add(house); db.commit(); db.refresh(house)
         db.add(models.StatusUpdate(student_id=user.id, boarding_house_id=house.id,
                                    status_type="same", month_label=datetime.utcnow().strftime("%B %Y")))
@@ -145,8 +144,8 @@ def register_osas(payload: schemas.RegisterOsasRequest, db: Session = Depends(ge
 @app.post("/api/auth/token", response_model=schemas.TokenResponse)
 def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
     user = db.query(models.User).filter(models.User.email == form_data.username).first()
-    generic = "Incorrect email or password."
-    if not user: raise HTTPException(401, generic)
+    if not user:
+        raise HTTPException(401, "No account found with this email. Please sign up first.")
     if user.locked_until and user.locked_until > datetime.utcnow():
         mins = int((user.locked_until - datetime.utcnow()).total_seconds() // 60) + 1
         raise HTTPException(429, f"Account locked for {mins} more minute(s).")
@@ -159,7 +158,7 @@ def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depend
             log_action(db, user, "lockout", "user", user.id, user.email, f"Locked after {MAX_FAILED} failed attempts")
             raise HTTPException(429, f"Too many failed attempts. Account locked for {LOCKOUT_MINS} minutes.")
         db.commit()
-        raise HTTPException(401, generic)
+        raise HTTPException(401, "Incorrect password. Please try again.")
 
     user.failed_login_attempts = 0; user.locked_until = None; db.commit()
 
@@ -250,7 +249,7 @@ def reset_password(payload: schemas.ResetPasswordRequest, db: Session = Depends(
     return {"message": "Password updated. You can now sign in."}
 
 
-# ─── STUDENT endpoints ────────────────────────────────────────────────────────
+# â”€â”€â”€ STUDENT endpoints â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 @app.get("/api/student/me", response_model=schemas.MyProfileOut)
 def my_profile(user: models.User = Depends(require_student)):
     return user
@@ -279,7 +278,7 @@ def student_post_review(hid: int, payload: schemas.ReviewCreate, db: Session = D
                         user: models.User = Depends(require_student)):
     h = db.query(models.BoardingHouse).get(hid)
     if not h: raise HTTPException(404, "Not found")
-    if not (1 <= payload.rating <= 5): raise HTTPException(400, "Rating must be 1–5")
+    if not (1 <= payload.rating <= 5): raise HTTPException(400, "Rating must be 1â€“5")
     r = models.Review(boarding_house_id=hid, author_id=user.id, rating=payload.rating, text=payload.text)
     db.add(r); db.commit(); db.refresh(r)
     log_action(db, user, "create", "review", r.id, h.name, f"Rating: {payload.rating}/5")
@@ -296,7 +295,7 @@ def update_review(rid: int, payload: schemas.ReviewUpdate, db: Session = Depends
     if not r: raise HTTPException(404, "Not found")
     if r.author_id != user.id: raise HTTPException(403, "Not your review")
     if payload.rating is not None:
-        if not (1 <= payload.rating <= 5): raise HTTPException(400, "Rating 1–5")
+        if not (1 <= payload.rating <= 5): raise HTTPException(400, "Rating 1â€“5")
         r.rating = payload.rating
     if payload.text is not None: r.text = payload.text
     db.commit(); db.refresh(r)
@@ -324,7 +323,7 @@ def submit_status(payload: schemas.StatusUpdateCreate, db: Session = Depends(get
                             note=payload.note, month_label=payload.month_label)
     db.add(u); db.commit(); db.refresh(u)
     log_action(db, user, "create", "status_update", u.id, payload.month_label,
-               f"Status: {payload.status_type}" + (f" → {payload.new_boarding_house_name}" if payload.new_boarding_house_name else ""))
+               f"Status: {payload.status_type}" + (f" â†’ {payload.new_boarding_house_name}" if payload.new_boarding_house_name else ""))
     return u
 
 @app.get("/api/student/status-updates", response_model=List[schemas.StatusUpdateOut])
@@ -369,7 +368,7 @@ def my_boarding_house(db: Session = Depends(get_db), user: models.User = Depends
     return u.boarding_house if u else None
 
 
-# ─── OSAS endpoints ───────────────────────────────────────────────────────────
+# â”€â”€â”€ OSAS endpoints â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 @app.get("/api/osas/dashboard", response_model=schemas.DashboardStats)
 def dashboard(db: Session = Depends(get_db), user: models.User = Depends(require_osas_admin)):
     students = db.query(models.User).filter(models.User.role == "student").all()
@@ -519,7 +518,7 @@ def update_concern(cid: int, new_status: str, db: Session = Depends(get_db),
     if not c: raise HTTPException(404, "Not found")
     c.status = new_status; db.commit()
     log_action(db, user, "update", "concern", cid,
-               c.student.full_name if c.student else None, f"Status → {new_status}")
+               c.student.full_name if c.student else None, f"Status â†’ {new_status}")
     return {"message": "Updated"}
 
 @app.delete("/api/osas/concerns/{cid}")
@@ -612,7 +611,7 @@ def get_audit_logs(
     return q.limit(limit).all()
 
 
-# ─── TALLY / EXPORT ───────────────────────────────────────────────────────────
+# â”€â”€â”€ TALLY / EXPORT â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 def _compute_tally(db, group_by_list, month_label):
     valid = {"barangay","boarding_house","gender","department","monthly_status"}
     def compute_section(g):
@@ -663,7 +662,7 @@ def export_csv(group_by: str, month_label: Optional[str] = None,
             w.writerow([row.group_label, row.count, "; ".join(row.student_names)])
         w.writerow(["Total", sec.total])
         w.writerow([])
-    log_action(db, user, "export", "report", None, group_by, f"CSV export — {month_label or 'all months'}")
+    log_action(db, user, "export", "report", None, group_by, f"CSV export â€” {month_label or 'all months'}")
     return StreamingResponse(io.BytesIO(buf.getvalue().encode()),
         media_type="text/csv",
         headers={"Content-Disposition":f"attachment; filename=geotrack_report.csv"})
@@ -680,7 +679,7 @@ def export_excel(group_by: str, month_label: Optional[str] = None,
     for i, sec in enumerate(sections):
         ws = wb.create_sheet(title=sec.group_by[:31]) if i > 0 else wb.active
         ws.title = sec.group_by[:31]
-        ws.append([f"GeoTrack Tally Report — {sec.group_by}", f"Month: {month_label or 'All months'}"])
+        ws.append([f"GeoTrack Tally Report â€” {sec.group_by}", f"Month: {month_label or 'All months'}"])
         ws.append(["Group", "Count", "Students"])
         for cell in ws[2]: cell.font = Font(bold=True)
         for row in sec.rows:
@@ -689,7 +688,7 @@ def export_excel(group_by: str, month_label: Optional[str] = None,
         for col in range(1, 4):
             ws.column_dimensions[get_column_letter(col)].width = [30, 10, 60][col-1]
     buf = BytesIO(); wb.save(buf); buf.seek(0)
-    log_action(db, user, "export", "report", None, group_by, f"Excel export — {month_label or 'all months'}")
+    log_action(db, user, "export", "report", None, group_by, f"Excel export â€” {month_label or 'all months'}")
     return StreamingResponse(buf, media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         headers={"Content-Disposition":"attachment; filename=geotrack_report.xlsx"})
 
@@ -728,11 +727,11 @@ def export_pdf(group_by: str, month_label: Optional[str] = None,
         story += [t, Spacer(1, 16)]
     doc.build(story)
     buf.seek(0)
-    log_action(db, user, "export", "report", None, group_by, f"PDF export — {month_label or 'all months'}")
+    log_action(db, user, "export", "report", None, group_by, f"PDF export â€” {month_label or 'all months'}")
     return StreamingResponse(buf, media_type="application/pdf",
         headers={"Content-Disposition":"attachment; filename=geotrack_report.pdf"})
 
 
 @app.get("/api/")
 def root():
-    return {"message": "GeoTrack API v3 — /docs for explorer."}
+    return {"message": "GeoTrack API v3 â€” /docs for explorer."}

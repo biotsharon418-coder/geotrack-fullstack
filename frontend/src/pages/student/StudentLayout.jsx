@@ -9,6 +9,19 @@ import "./student.css";
 export default function StudentLayout() {
   return (
     <div className="student-shell">
+      <div className="student-shell-brand">
+        <div className="brand-mark" style={{ color:"#d9e6df" }}>
+          <span className="pin-dot"></span> GEOTRACK
+        </div>
+        <div>
+          <div className="osas-brand-title">Your off-campus life, in one app.</div>
+          <div className="osas-brand-sub">
+            Update your monthly status, browse verified boarding houses, and raise concerns with OSAS â€” built for LSPU-SPCC students.
+          </div>
+        </div>
+        <div className="osas-brand-coords">14.0683Â° N, 121.3250Â° E â€” SAN PABLO CITY Â· LSPU-SPCC</div>
+      </div>
+
       <div className="student-phone">
         <Outlet />
 

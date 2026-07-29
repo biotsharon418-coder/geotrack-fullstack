@@ -19,9 +19,9 @@ function getStrength(pw) {
   return       { label:"Strong",  color:"#3c7a5c", pct:100 };
 }
 
-// ─── Email validation ────────────────────────────────────────────────────────
+// â”€â”€â”€ Email validation â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // Format: STUDENTID@lspu.edu.ph where student ID is digits and hyphens
-// e.g. 0323-4198@lspu.edu.ph
+// e.g. 0000-0000@lspu.edu.ph
 function isLspu(email) {
   const lower = email.toLowerCase().trim();
   if (!lower.endsWith("@lspu.edu.ph")) return false;
@@ -33,13 +33,13 @@ function isLspu(email) {
 function emailHint(email) {
   if (email === "") return null;
   const lower = email.toLowerCase().trim();
-  if (!lower.endsWith("@lspu.edu.ph")) return { ok: false, msg: "Must end with @lspu.edu.ph (e.g. 0323-4198@lspu.edu.ph)" };
+  if (!lower.endsWith("@lspu.edu.ph")) return { ok: false, msg: "Must end with @lspu.edu.ph (e.g. 0000-0000@lspu.edu.ph)" };
   const local = lower.split("@")[0];
-  if (!/^[\d][\d\-]+[\d]$/.test(local)) return { ok: false, msg: "Username must be your Student ID (e.g. 0323-4198), not your name." };
-  return { ok: true, msg: "✓ LSPU student ID email accepted" };
+  if (!/^[\d][\d\-]+[\d]$/.test(local)) return { ok: false, msg: "Username must be your Student ID (e.g. 0000-0000), not your name." };
+  return { ok: true, msg: "âœ“ LSPU student ID email accepted" };
 }
 
-const TERMS = `GEOTRACK — STUDENT DATA PRIVACY TERMS
+const TERMS = `GEOTRACK â€” STUDENT DATA PRIVACY TERMS
 
 By creating a GeoTrack account, you agree to the following:
 
@@ -48,9 +48,9 @@ By creating a GeoTrack account, you agree to the following:
 
 2. HOW YOUR INFORMATION IS USED
    Your data is used solely for:
-   • Monitoring off-campus living conditions
-   • Generating aggregated statistical reports for OSAS
-   • Following up on welfare concerns you report
+   â€¢ Monitoring off-campus living conditions
+   â€¢ Generating aggregated statistical reports for OSAS
+   â€¢ Following up on welfare concerns you report
    Your data will NOT be sold or shared with third parties.
 
 3. REVIEWS ARE ANONYMOUS
@@ -113,7 +113,7 @@ export default function StudentLogin() {
       }
       if (session.role !== "student") { setError("This account is not registered as a student."); setLoading(false); return; }
 
-      // 2FA required — go to TOTP verification (no session stored yet)
+      // 2FA required â€” go to TOTP verification (no session stored yet)
       if (session.requires_2fa) {
         navigate("/student/2fa-verify", { state: { pendingToken: session.pending_token, role: session.role } });
         return;
@@ -130,19 +130,27 @@ export default function StudentLogin() {
       login(session);
       navigate("/student/home");
     } catch (err) {
-      const msg = err.message || "";
-      if (mode === "login" && (msg.includes("Incorrect") || msg.includes("401"))) {
-        setError("No account found with these credentials. Please check your details, or create an account first.");
-      } else { setError(msg); }
+      setError(err.message || "Something went wrong. Please try again.");
     } finally { setLoading(false); }
   }
 
   return (
     <div className="student-login-wrap">
       <div className="student-login-card">
-        <div className="brand-mark" style={{ color:"var(--moss)", marginBottom:24 }}>
-          <span className="pin-dot"></span> GEOTRACK
+        <div className="student-login-brand">
+          <div className="brand-mark" style={{ color:"#d9e6df" }}>
+            <span className="pin-dot"></span> GEOTRACK
+          </div>
+          <div>
+            <div className="osas-brand-title">Your off-campus life, in one app.</div>
+            <div className="osas-brand-sub">
+              Update your monthly status, browse verified boarding houses, and raise concerns with OSAS â€” built for LSPU-SPCC students.
+            </div>
+          </div>
+          <div className="osas-brand-coords">14.0683Â° N, 121.3250Â° E â€” SAN PABLO CITY Â· LSPU-SPCC</div>
         </div>
+
+        <div className="student-login-form">
         <div className="form-eyebrow">Student {mode === "login" ? "sign in" : "registration"}</div>
         <h1 className="form-title">{mode === "login" ? "Welcome back" : "Create your account"}</h1>
 
@@ -160,16 +168,16 @@ export default function StudentLogin() {
             <label>Institutional email</label>
             <input type="email" value={email}
               onChange={e => { setEmail(e.target.value); setError(""); }}
-              placeholder="0323-4198@lspu.edu.ph" required />
+              placeholder="0000-0000@lspu.edu.ph" required />
             {hint && !hint.ok && (
-              <div style={{ fontSize:11, color:"var(--pin)", marginTop:5 }}>⚠ {hint.msg}</div>
+              <div style={{ fontSize:11, color:"var(--pin)", marginTop:5 }}>âš  {hint.msg}</div>
             )}
             {hint && hint.ok && (
               <div style={{ fontSize:11, color:"var(--ok)", marginTop:5 }}>{hint.msg}</div>
             )}
             {!hint && (
               <div style={{ fontSize:11, color:"#857d6c", marginTop:5 }}>
-                Use your Student ID as the email (e.g. 0323-4198@lspu.edu.ph)
+                Use your Student ID as the email (e.g. 0000-0000@lspu.edu.ph)
               </div>
             )}
           </div>
@@ -191,7 +199,7 @@ export default function StudentLogin() {
                   <div style={{ height:"100%", width:`${strength.pct}%`, background:strength.color, transition:"all .25s" }} />
                 </div>
                 <div style={{ fontSize:11, color:strength.color, marginTop:3 }}>
-                  {strength.label} — needs 8+ chars, upper, lower, number, special character.
+                  {strength.label} â€” needs 8+ chars, upper, lower, number, special character.
                 </div>
               </div>
             )}
@@ -222,11 +230,11 @@ export default function StudentLogin() {
               </div>
               <p style={{ fontSize:11.5, color:"#6b6457", lineHeight:1.55, marginBottom:10 }}>
                 Adding it now helps OSAS reach you faster. An OSAS staff member will confirm the exact
-                map location for you — you don't need to pin it yourself.
+                map location for you â€” you don't need to pin it yourself.
               </p>
               <div className="field">
                 <label>Boarding house name</label>
-                <input value={bhName} onChange={e => setBhName(e.target.value)} placeholder="e.g. Sto. Niño Lodge" />
+                <input value={bhName} onChange={e => setBhName(e.target.value)} placeholder="e.g. Sto. NiÃ±o Lodge" />
               </div>
               <div className="field">
                 <label>Barangay</label>
@@ -247,7 +255,7 @@ export default function StudentLogin() {
                   background: termsAgreed ? "var(--moss)" : "#fff",
                   display:"flex", alignItems:"center", justifyContent:"center",
                 }}>
-                  {termsAgreed && <span style={{ color:"#fff", fontSize:12, lineHeight:1 }}>✓</span>}
+                  {termsAgreed && <span style={{ color:"#fff", fontSize:12, lineHeight:1 }}>âœ“</span>}
                 </div>
                 <span style={{ fontSize:12.5, color:"#544f43" }}>I have read and agree to the Terms &amp; Conditions.</span>
               </div>
@@ -256,7 +264,7 @@ export default function StudentLogin() {
 
           <button className="btn primary" style={{ width:"100%", padding:13 }}
             disabled={loading || (email.length > 0 && !emailOk)}>
-            {loading ? "Please wait…" : mode === "login" ? "Sign in" : "Create account"}
+            {loading ? "Please waitâ€¦" : mode === "login" ? "Sign in" : "Create account"}
           </button>
         </form>
 
@@ -275,6 +283,7 @@ export default function StudentLogin() {
         </div>
 
         <div className="scope-note">This app is for LSPU-SPCC students only.</div>
+        </div>
       </div>
 
       {termsOpen && (

@@ -1,5 +1,5 @@
 """
-auth.py — password hashing, JWT, role-based FastAPI dependencies.
+auth.py â€” password hashing, JWT, role-based FastAPI dependencies.
 SECRET_KEY must be set as an environment variable in production.
 """
 import os
