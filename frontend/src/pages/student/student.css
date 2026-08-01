@@ -1,7 +1,7 @@
 /* src/pages/student/student.css
-   Mobile-app feel for the Student side of GeoTrack: everything is
-   centered in a phone-width column so it reads as a phone app even
-   when opened in a desktop browser tab. */
+   Mobile-app feel for the Student side of GeoTrack on phones. On tablet and
+   desktop the layout progressively widens so it reads as a full web app,
+   matching the OSAS admin dashboard's design language. */
 
 .student-login-wrap{
   min-height:100vh; display:flex; align-items:center; justify-content:center;
@@ -10,6 +10,15 @@
 .student-login-card{
   width:100%; max-width:380px; background:var(--card); border-radius:24px;
   padding:32px 28px; box-shadow:0 30px 60px -30px rgba(28,43,36,.35);
+}
+/* Brand panel only appears on wide screens (see desktop breakpoint below);
+   hidden by default so phones/tablets keep the plain card. */
+.student-login-brand{ display:none; }
+.student-brand-title{font-family:var(--font-display); font-size:36px; line-height:1.1; margin-top:28px; font-weight:600;}
+.student-brand-sub{margin-top:14px; font-size:14.5px; line-height:1.55; color:#cfe0d7; max-width:320px;}
+.student-brand-coords{
+  font-family:var(--font-mono); font-size:11px; color:#a9c4b6; letter-spacing:.05em;
+  border-top:1px solid rgba(243,239,228,.18); padding-top:16px; margin-top:32px;
 }
 .form-eyebrow{
   font-family:var(--font-mono); font-size:10.5px; letter-spacing:.1em; text-transform:uppercase;
@@ -88,3 +97,56 @@
 
 .back-row{display:flex; align-items:center; gap:10px;}
 .back-row button{background:none; border:none; font-size:18px; cursor:pointer; padding:0 4px;}
+
+/* ============ TABLET (600px - 899px): wider centered card, more room to
+   breathe, still a single-column "app" feel since a two-column phone-style
+   nav doesn't make sense yet at this width. ============ */
+@media (min-width:600px) and (max-width:899px){
+  .student-login-card{ max-width:480px; padding:40px 36px; }
+  .student-shell{ padding:36px; }
+  .student-phone{ max-width:560px; min-height:80vh; border-radius:20px; }
+  .student-header{ padding:28px 32px 14px; }
+  .student-body{ padding:8px 32px 24px; }
+}
+
+/* ============ DESKTOP (900px+): full web-app treatment matching the OSAS
+   admin dashboard's design language - a wide split-panel login (brand +
+   form side by side) and a widened, airier content shell instead of a
+   phone-width card. ============ */
+@media (min-width:900px){
+  .student-login-card{
+    display:grid; grid-template-columns:1fr 1fr; max-width:920px;
+    padding:0; border:1px solid var(--line); border-radius:18px; overflow:hidden;
+  }
+  .student-login-brand{
+    display:flex; flex-direction:column; justify-content:space-between;
+    background:
+      radial-gradient(circle at 30% 20%, rgba(193,80,46,.35), transparent 45%),
+      linear-gradient(165deg,var(--moss-dark),var(--moss) 70%);
+    color:#f3efe4; padding:48px 40px; position:relative; overflow:hidden;
+  }
+  .student-login-brand::after{
+    content:""; position:absolute; right:-60px; bottom:-60px; width:220px; height:220px;
+    border:1px dashed rgba(243,239,228,.25); border-radius:50%;
+  }
+  .student-login-form{ padding:48px 40px; display:flex; flex-direction:column; justify-content:center; }
+  /* the small inline brand-mark inside the form column is redundant once
+     the dedicated brand panel is showing */
+  .student-login-form > .brand-mark{ display:none; }
+
+  .student-shell{ padding:40px; }
+  .student-phone{
+    max-width:1040px; min-height:82vh; border-radius:22px;
+    flex-direction:row-reverse; overflow:hidden;
+  }
+  .student-main{ flex:1; display:flex; flex-direction:column; min-width:0; overflow-y:auto; }
+  .student-header{ padding:32px 40px 14px; }
+  .student-body{ padding:8px 40px 32px; flex:1; overflow-y:visible; }
+  .bottom-nav{
+    width:220px; flex-shrink:0; flex-direction:column; justify-content:flex-start;
+    align-items:stretch; gap:6px; border-top:none; border-right:1px solid var(--line);
+    background:var(--card); padding:32px 16px;
+  }
+  .nav-btn{ flex-direction:row; justify-content:flex-start; gap:10px; font-size:13px; padding:10px 12px; border-radius:8px; }
+  .nav-btn.active{ background:#eef1e9; }
+}

@@ -10,7 +10,9 @@ export default function StudentLayout() {
   return (
     <div className="student-shell">
       <div className="student-phone">
-        <Outlet />
+        <div className="student-main">
+          <Outlet />
+        </div>
 
         <div className="bottom-nav">
           <NavLink to="/student/home" className={({ isActive }) => `nav-btn ${isActive ? "active" : ""}`}>

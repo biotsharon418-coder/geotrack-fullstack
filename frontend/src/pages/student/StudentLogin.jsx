@@ -167,6 +167,20 @@ export default function StudentLogin() {
   return (
     <div className="student-login-wrap">
       <div className="student-login-card">
+        <div className="student-login-brand">
+          <div className="brand-mark" style={{ color:"#d9e6df" }}>
+            <span className="pin-dot"></span> GEOTRACK
+          </div>
+          <div>
+            <div className="student-brand-title">Your off-campus life, all in one app.</div>
+            <div className="student-brand-sub">
+              Log your monthly status, browse verified boarding houses, and reach OSAS when you need help - built for LSPU-SPCC students.
+            </div>
+          </div>
+          <div className="student-brand-coords">14.0683 deg N, 121.3250 deg E - SAN PABLO CITY - LSPU-SPCC</div>
+        </div>
+
+        <div className="student-login-form">
         <div className="brand-mark" style={{ color:"var(--moss)", marginBottom:24 }}>
           <span className="pin-dot"></span> GEOTRACK
         </div>
@@ -315,6 +329,7 @@ export default function StudentLogin() {
         </div>
 
         <div className="scope-note">This app is for LSPU-SPCC students only.</div>
+        </div>
       </div>
 
       {termsOpen && (
