@@ -61,8 +61,12 @@ export default function OsasLogin() {
               Monitor monthly status updates, verify boarding houses, and generate reports - built for OSAS personnel.
             </div>
           </div>
-          <div className="osas-brand-coords">14.0683 deg N, 121.3250 deg E - SAN PABLO CITY - LSPU-SPCC</div>
-        </div>
+          <div className="osas-brand-coords">
+  Laguna State Polytechnic University - San Pablo City Campus
+  <br />
+  38M7+559, Cosico Ave, San Pablo City, 4000 Laguna
+</div>
+</div>
 
         <div className="osas-login-form">
           <div className="form-eyebrow">OSAS staff {mode === "login" ? "sign in" : "registration"}</div>

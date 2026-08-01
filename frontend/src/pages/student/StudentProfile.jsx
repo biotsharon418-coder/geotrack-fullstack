@@ -95,15 +95,24 @@ export default function StudentProfile() {
           </div>
         )}
 
-        <div className="card" style={{marginTop:14}}>
-          <div className="card-title">Account</div>
-          <p style={{fontSize:12,color:"#857d6c",marginBottom:12}}>
-            Email address cannot be changed here. Contact OSAS if you need it updated.
-          </p>
-          <button className="btn" style={{width:"100%",padding:13,color:"var(--pin)"}} onClick={handleLogout}>
-            Sign out
-          </button>
-        </div>
+        <div className="card student-signout-card" style={{marginTop:20}}>
+  <div className="card-title">Account</div>
+
+  <p style={{
+    fontSize:12,
+    color:"#857d6c",
+    marginBottom:14
+  }}>
+    Manage your account session.
+  </p>
+
+  <button
+    className="btn student-signout-btn"
+    onClick={handleLogout}
+  >
+    Sign out
+  </button>
+</div>
       </div>
     </>
   );

@@ -98,13 +98,67 @@ export default function DormDetail() {
 
   return (
     <>
-      <div className="student-header back-row">
-        <button onClick={() => navigate("/student/directory")}>Back</button>
-        <div>
-          <div className="greet">{house?.barangay || "Boarding house"}</div>
-          <h2>{house?.name || `House #${houseId}`}</h2>
-        </div>
+      <div className="student-header">
+
+  <button
+    className="btn"
+    style={{
+      marginBottom:12,
+      padding:"8px 14px",
+      fontSize:12
+    }}
+    onClick={() => navigate("/student/directory")}
+  >
+    ← Back to Directory
+  </button>
+
+
+  <div className="greet">
+    {house?.barangay || "Boarding house"}
+  </div>
+
+  <h2>
+    {house?.name || `House #${houseId}`}
+  </h2>
+
+
+  {
+    reviews.length > 0 && (
+      <div
+        style={{
+          marginTop:8,
+          fontSize:12,
+          color:"#c98a4b",
+          fontWeight:700
+        }}
+      >
+        {"★".repeat(
+          Math.round(
+            reviews.reduce(
+              (sum,r)=>sum+r.rating,
+              0
+            ) / reviews.length
+          )
+        )}
+
+        {" "}
+        {
+          (
+          reviews.reduce(
+            (sum,r)=>sum+r.rating,
+            0
+          ) / reviews.length
+          ).toFixed(1)
+        }
+
+        {" "}
+        ({reviews.length} student reviews)
+
       </div>
+    )
+  }
+
+</div>
       <div className="student-body">
         {error && <div className="error-banner">{error}</div>}
 
@@ -119,8 +173,14 @@ export default function DormDetail() {
           />
         </div>
 
-        <div className="card" style={{ marginBottom: 14 }}>
-          <div className="card-title">Reviews from students</div>
+        <div 
+  id="reviews-section"
+  className="card"
+  style={{ marginBottom: 14 }}
+>
+  <div className="card-title">
+    Student comments
+  </div>
           {loading ? (
             <div className="loading-text">Loading...</div>
           ) : reviews.length === 0 ? (
@@ -179,8 +239,19 @@ export default function DormDetail() {
         </div>
 
         <div className="card">
-          <div className="card-title">Write a review</div>
-          <form onSubmit={handlePostReview}>
+<div className="card-title">
+  Share your experience
+</div>
+
+<p style={{
+  fontSize:12,
+  color:"#857d6c",
+  marginBottom:12,
+  lineHeight:1.5
+}}>
+  Help other students by sharing your experience.
+  Your comment will be posted anonymously.
+</p>          <form onSubmit={handlePostReview}>
             <div className="field">
               <label>Rating</label>
               <select value={rating} onChange={(e) => setRating(e.target.value)}>

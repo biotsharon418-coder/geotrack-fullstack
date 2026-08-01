@@ -108,6 +108,7 @@ export default function OsasReports() {
             <button className="btn" onClick={()=>handleExport("pdf")} style={{color:"var(--pin)"}}>Download PDF</button>
             <button className="btn" onClick={()=>handleExport("excel")} style={{color:"var(--moss)"}}>Download Excel</button>
             <button className="btn" onClick={()=>handleExport("csv")} style={{color:"#6b6457"}}>Download CSV</button>
+            <button className="btn" style={{color:"#2f5d4f"}} onClick={() => window.print()} > Download Charts </button>
           </>}
         </div>
       </div>
@@ -127,13 +128,38 @@ export default function OsasReports() {
                     : sec.rows.length <= 5
                     ? <ResponsiveContainer width="100%" height={180}>
                         <PieChart>
-                          <Pie data={sec.rows} dataKey="count" nameKey="group_label"
-                            cx="50%" cy="50%" outerRadius={70}
-                            label={({group_label,count})=>`${group_label}: ${count}`}>
-                            {sec.rows.map((_,i)=><Cell key={i} fill={COLORS[i%COLORS.length]}/>)}
-                          </Pie>
-                          <Tooltip /><Legend />
-                        </PieChart>
+  <Pie
+    data={sec.rows}
+    dataKey="count"
+    nameKey="group_label"
+    cx="40%"
+    cy="50%"
+    outerRadius={65}
+    label={false}
+  >
+    {sec.rows.map((_, i) => (
+      <Cell
+        key={i}
+        fill={COLORS[i % COLORS.length]}
+      />
+    ))}
+  </Pie>
+
+  <Tooltip
+    formatter={(value) => [`${value} Students`, "Total"]}
+  />
+
+  <Legend
+    layout="vertical"
+    align="right"
+    verticalAlign="middle"
+    iconType="circle"
+    wrapperStyle={{
+      fontSize: 12,
+      lineHeight: "18px"
+    }}
+  />
+</PieChart>
                       </ResponsiveContainer>
                     : <ResponsiveContainer width="100%" height={180}>
                         <BarChart data={sec.rows} margin={{top:5,right:10,left:-20,bottom:30}}>
@@ -175,10 +201,21 @@ export default function OsasReports() {
           ))}
 
           <div className="no-print" style={{display:"flex",gap:10,marginBottom:18}}>
-            <button className="btn primary" onClick={()=>window.print()}>Print Print report</button>
-            <button className="btn" onClick={()=>handleExport("pdf")} style={{color:"var(--pin)"}}>Download Download PDF</button>
-            <button className="btn" onClick={()=>handleExport("excel")} style={{color:"var(--moss)"}}>Download Download Excel</button>
-            <button className="btn" onClick={()=>handleExport("csv")} style={{color:"#6b6457"}}>Download Download CSV</button>
+           <button className="btn primary" onClick={() => window.print()}>
+    Print Report
+</button>
+
+<button className="btn" onClick={() => handleExport("pdf")}>
+    Download PDF
+</button>
+
+<button className="btn" onClick={() => handleExport("excel")}>
+    Download Excel
+</button>
+
+<button className="btn" onClick={() => handleExport("csv")}>
+    Download CSV
+</button>
           </div>
         </div>
       )}

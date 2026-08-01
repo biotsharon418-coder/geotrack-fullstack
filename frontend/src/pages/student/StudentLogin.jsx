@@ -177,9 +177,12 @@ export default function StudentLogin() {
               Log your monthly status, browse verified boarding houses, and reach OSAS when you need help - built for LSPU-SPCC students.
             </div>
           </div>
-          <div className="student-brand-coords">14.0683 deg N, 121.3250 deg E - SAN PABLO CITY - LSPU-SPCC</div>
-        </div>
-
+          <div className="student-brand-coords">
+  Laguna State Polytechnic University - San Pablo City Campus
+  <br />
+  38M7+559, Cosico Ave, San Pablo City, 4000 Laguna
+</div>
+</div>
         <div className="student-login-form">
         <div className="brand-mark" style={{ color:"var(--moss)", marginBottom:24 }}>
           <span className="pin-dot"></span> GEOTRACK
