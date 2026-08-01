@@ -5,7 +5,10 @@ import { useAuth } from "../../context/AuthContext";
 import StudentMiniMap from "../../components/StudentMiniMap";
 import { api } from "../../api/client";
 
-const CURRENT_MONTH = "July 2026";
+const CURRENT_MONTH = new Date().toLocaleString("en-US", {
+  month: "long",
+  year: "numeric",
+});
 
 export default function StudentHome() {
   const { fullName } = useAuth();

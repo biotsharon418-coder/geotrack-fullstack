@@ -2,7 +2,13 @@
 import { useEffect, useState } from "react";
 import { api } from "../../api/client";
 
-const MONTHS = ["July 2026","June 2026","May 2026","April 2026"];
+const MONTHS = [
+  new Date().toLocaleString("en-US", { month: "long", year: "numeric" }),
+  "July 2026",
+  "June 2026",
+  "May 2026",
+  "April 2026"
+];
 
 export default function OsasStatusUpdates() {
   const [updates, setUpdates] = useState([]);

@@ -8,14 +8,20 @@
 import { useEffect, useState } from "react";
 import { api } from "../../api/client";
 
-const MONTHS = ["June 2026", "May 2026", "April 2026"];
+const now = new Date();
+
+const CURRENT_MONTH = now.toLocaleString("en-US", {
+  month: "long",
+  year: "numeric",
+});
+
+
 
 export default function StudentStatus() {
   const [statusType, setStatusType] = useState("same");
   const [newBoardingHouseName, setNewBoardingHouseName] = useState("");
   const [newBarangay, setNewBarangay] = useState("");
   const [note, setNote] = useState("");
-  const [monthLabel, setMonthLabel] = useState(MONTHS[0]);
 
   const [pastUpdates, setPastUpdates] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -50,9 +56,9 @@ export default function StudentStatus() {
         new_boarding_house_name: statusType === "transferred" ? newBoardingHouseName : null,
         new_barangay: statusType === "transferred" ? newBarangay : null,
         note: note || null,
-        month_label: monthLabel,
+        month_label: CURRENT_MONTH,
       });
-      setSuccess(`Update for ${monthLabel} submitted.`);
+    setSuccess(`Update for ${CURRENT_MONTH} submitted.`);
       setNote("");
       setNewBoardingHouseName("");
       setNewBarangay("");
@@ -91,14 +97,14 @@ export default function StudentStatus() {
         <div className="card" style={{ marginBottom: 14 }}>
           <div className="card-title">This month I am...</div>
           <form onSubmit={handleSubmit}>
-            <div className="field">
-              <label>Month</label>
-              <select value={monthLabel} onChange={(e) => setMonthLabel(e.target.value)}>
-                {MONTHS.map((m) => (
-                  <option key={m} value={m}>{m}</option>
-                ))}
-              </select>
-            </div>
+           <div className="field">
+            <label>Current Month</label>
+            <input
+              type="text"
+             value={CURRENT_MONTH}
+             readOnly
+           />
+          </div>  
 
             <div className="field">
               <select value={statusType} onChange={(e) => setStatusType(e.target.value)}>
@@ -144,8 +150,7 @@ export default function StudentStatus() {
             </div>
 
             <button className="btn primary" style={{ width: "100%", padding: 13 }} disabled={submitting}>
-              {submitting ? "Submitting..." : `Submit update for ${monthLabel}`}
-            </button>
+          {submitting ? "Submitting..." : `Submit update for ${CURRENT_MONTH}`}            </button>
           </form>
         </div>
 

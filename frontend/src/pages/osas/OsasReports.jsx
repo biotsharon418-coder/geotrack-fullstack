@@ -3,7 +3,14 @@ import { useState } from "react";
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend } from "recharts";
 import { api } from "../../api/client";
 
-const MONTHS = ["","July 2026","June 2026","May 2026","April 2026"];
+const MONTHS = [
+  "",
+  new Date().toLocaleString("en-US", { month: "long", year: "numeric" }),
+  "July 2026",
+  "June 2026",
+  "May 2026",
+  "April 2026"
+];
 const GROUP_OPTIONS = [
   { value:"barangay",       label:"Barangay" },
   { value:"boarding_house", label:"Boarding house" },
@@ -17,7 +24,10 @@ const SECTION_LABELS = { barangay:"Barangay", boarding_house:"Boarding house",
 
 export default function OsasReports() {
   const [selected, setSelected] = useState(["barangay"]);
-  const [monthLabel, setMonthLabel] = useState("July 2026");
+  const [monthLabel, setMonthLabel] = useState(new Date().toLocaleString("en-US", { 
+  month: "long", 
+  year: "numeric" 
+}));
   const [report, setReport] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
