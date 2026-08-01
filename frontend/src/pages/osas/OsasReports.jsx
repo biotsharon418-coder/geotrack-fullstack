@@ -52,14 +52,62 @@ export default function OsasReports() {
     finally { setLoading(false); }
   }
 
-  function handleExport(fmt) {
-    const url = api.osas.exportURL(fmt, selected, monthLabel||null);
-    // Append auth token as query param since we can't set headers on an anchor download
-    window.open(url, "_blank");
-  }
-
   const allChecked = selected.length === GROUP_OPTIONS.length;
   const someChecked = selected.length > 0 && !allChecked;
+
+async function handleExport(fmt) {
+  try {
+    const token = localStorage.getItem("osas_token");
+
+    const params = new URLSearchParams({
+      group_by: selected.join(","),
+    });
+
+    if (monthLabel) {
+      params.append("month_label", monthLabel);
+    }
+
+    const exportUrl = `${import.meta.env.VITE_API_URL}/osas/reports/export/${fmt}?${params}`;
+
+console.log("EXPORT URL:", exportUrl);
+
+const response = await fetch(exportUrl, {
+  headers: {
+    Authorization: `Bearer ${token}`,
+  },
+});
+
+    if (!response.ok) {
+  const text = await response.text();
+  throw new Error(`Export failed (${response.status}): ${text}`);
+}
+
+    const blob = await response.blob();
+
+    const url = window.URL.createObjectURL(blob);
+
+    const a = document.createElement("a");
+
+    a.href = url;
+
+    a.download =
+      fmt === "pdf"
+        ? "GeoTrack_Report.pdf"
+        : fmt === "excel"
+        ? "GeoTrack_Report.xlsx"
+        : "GeoTrack_Report.csv";
+
+    document.body.appendChild(a);
+
+    a.click();
+
+    a.remove();
+
+    window.URL.revokeObjectURL(url);
+  } catch (err) {
+    alert(err.message);
+  }
+}
 
   return (
     <>

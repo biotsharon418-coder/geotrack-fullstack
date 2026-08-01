@@ -118,6 +118,13 @@ export const api = {
     deleteStudent:      sid          => request(`/osas/students/${sid}`,{method:"DELETE"}),
     auditLogs:          (params={})  => { const q=new URLSearchParams(Object.fromEntries(Object.entries(params).filter(([,v])=>v!=null&&v!==""))); return request(`/osas/audit-logs?${q}`); },
     generateTallyReport:(groups,m)   => { const p=new URLSearchParams({group_by:groups.join(",")}); if(m)p.append("month_label",m); return request(`/osas/reports/tally?${p}`); },
-    exportURL:          (fmt,groups,m) => { const p=new URLSearchParams({group_by:groups.join(",")}); if(m)p.append("month_label",m); return `${API_BASE_URL}/osas/reports/export/${fmt}?${p}&token=${getToken()}`; },
-  },
-};
+   exportURL: (fmt, groups, m) => {
+  const p = new URLSearchParams({
+    group_by: groups.join(",")
+  });
+
+  if (m) p.append("month_label", m);
+
+  return `${API_BASE_URL}/osas/reports/export/${fmt}?${p}`;
+},
+}};
