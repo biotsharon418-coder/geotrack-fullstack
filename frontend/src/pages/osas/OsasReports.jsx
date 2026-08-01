@@ -2,6 +2,7 @@
 import { useState } from "react";
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend } from "recharts";
 import { api } from "../../api/client";
+import { toPng } from "html-to-image";
 
 const MONTHS = [
   "",
@@ -108,6 +109,30 @@ const response = await fetch(exportUrl, {
     alert(err.message);
   }
 }
+async function downloadCharts() {
+  const node = document.getElementById("report-charts");
+
+  if (!node) {
+    alert("Charts not found");
+    return;
+  }
+
+  try {
+    const dataUrl = await toPng(node, {
+      cacheBust: true,
+      backgroundColor: "#ffffff",
+    });
+
+    const link = document.createElement("a");
+    link.download = "GeoTrack_Charts.png";
+    link.href = dataUrl;
+    link.click();
+
+  } catch (err) {
+    console.error(err);
+    alert("Failed to export charts");
+  }
+}
 
   return (
     <>
@@ -156,16 +181,23 @@ const response = await fetch(exportUrl, {
             <button className="btn" onClick={()=>handleExport("pdf")} style={{color:"var(--pin)"}}>Download PDF</button>
             <button className="btn" onClick={()=>handleExport("excel")} style={{color:"var(--moss)"}}>Download Excel</button>
             <button className="btn" onClick={()=>handleExport("csv")} style={{color:"#6b6457"}}>Download CSV</button>
-            <button className="btn" style={{color:"#2f5d4f"}} onClick={() => window.print()} > Download Charts </button>
-          </>}
+            <button className="btn" style={{color:"#2f5d4f"}} onClick={downloadCharts}> Download Charts PNG </button>          </>}
         </div>
       </div>
 
       {showPreview && report && (
-        <div id="tally-report-printable">
+        <div id="tally-report-printable"> 
           {/* Charts */}
           {report.sections.length > 0 && (
-            <div className="osas-grid no-print" style={{gridTemplateColumns:"repeat(auto-fit,minmax(320px,1fr))",gap:18,marginBottom:18}}>
+  <div 
+    id="report-charts"
+      className="osas-grid"    
+      style={{
+      gridTemplateColumns:"repeat(auto-fit,minmax(320px,1fr))",
+      gap:18,
+      marginBottom:18
+    }}
+  >
               {report.sections.map(sec => (
                 <div className="card" key={`chart-${sec.group_by}`}>
                   <div className="panel-title" style={{marginBottom:10}}>
