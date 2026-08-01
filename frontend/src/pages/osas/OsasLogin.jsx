@@ -91,7 +91,7 @@ export default function OsasLogin() {
             <div className="field">
               <label>Email</label>
               <input type="email" value={email} onChange={e => setEmail(e.target.value)}
-                placeholder="reyes.osas@lspu.edu.ph" required />
+                placeholder="osas@lspu.edu.ph" required />
             </div>
             <div className="field">
               <label>Password</label>

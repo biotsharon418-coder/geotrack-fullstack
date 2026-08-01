@@ -204,7 +204,7 @@ export default function StudentLogin() {
             <label>Institutional email</label>
             <input type="email" value={email}
               onChange={e => { setEmail(e.target.value); setError(""); }}
-              placeholder="0323-4198@lspu.edu.ph" required />
+              placeholder="0000-0000@lspu.edu.ph" required />
             {hint && !hint.ok && (
               <div style={{ fontSize:11, color:"var(--pin)", marginTop:5 }}>[!] {hint.msg}</div>
             )}
@@ -213,7 +213,7 @@ export default function StudentLogin() {
             )}
             {!hint && (
               <div style={{ fontSize:11, color:"#857d6c", marginTop:5 }}>
-                Use your Student ID as the email (e.g. 0323-4198@lspu.edu.ph)
+                Use your Student ID as the email (e.g. 0000-0000@lspu.edu.ph)
               </div>
             )}
           </div>
