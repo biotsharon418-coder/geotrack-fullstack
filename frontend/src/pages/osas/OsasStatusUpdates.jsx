@@ -1,4 +1,4 @@
-// src/pages/osas/OsasStatusUpdates.jsx — with search + filter panel
+// src/pages/osas/OsasStatusUpdates.jsx - with search + filter panel
 import { useEffect, useState } from "react";
 import { api } from "../../api/client";
 
@@ -62,12 +62,12 @@ export default function OsasStatusUpdates() {
 
       {error && <div className="error-banner">{error}</div>}
 
-      {/* ── Filter panel ── */}
+      {/* -- Filter panel -- */}
       <div className="card" style={{marginBottom:18}}>
         <div style={{display:"flex",gap:10,flexWrap:"wrap",alignItems:"flex-end"}}>
           <div className="field" style={{flex:1,minWidth:200,marginBottom:0}}>
             <label>Search student</label>
-            <input placeholder="Name or email…" value={search}
+            <input placeholder="Name or email..." value={search}
               onChange={e => setSearch(e.target.value)} />
           </div>
           <div className="field" style={{marginBottom:0}}>
@@ -87,7 +87,7 @@ export default function OsasStatusUpdates() {
           </div>
         </div>
 
-        {/* ── Checkbox filters ── */}
+        {/* -- Checkbox filters -- */}
         <div style={{display:"flex",gap:16,flexWrap:"wrap",marginTop:14,paddingTop:12,borderTop:"1px solid var(--line)"}}>
           {[
             { label:"Verified",   state:isVerified, setter:setIsVerified, trueVal:"true",  falseVal:"false" },
@@ -125,13 +125,13 @@ export default function OsasStatusUpdates() {
             <button onClick={clearFilters} style={{
               background:"none",border:"none",color:"var(--pin)",cursor:"pointer",
               fontSize:12.5,fontFamily:"inherit",fontWeight:700,padding:0
-            }}>✕ Clear filters ({activeFilters})</button>
+            }}>x Clear filters ({activeFilters})</button>
           )}
         </div>
       </div>
 
       <div className="card">
-        {loading ? <div className="loading-text">Loading…</div>
+        {loading ? <div className="loading-text">Loading...</div>
         : displayed.length === 0 ? <div className="review-empty">No results for the current filters.</div>
         : (
           <table>
@@ -149,10 +149,10 @@ export default function OsasStatusUpdates() {
                   <td>{u.month_label}</td>
                   <td>
                     {u.status_type==="same"       && "Same boarding house"}
-                    {u.status_type==="transferred" && `Transferred → ${u.new_boarding_house_name||""}${u.new_barangay ? ` (${u.new_barangay})` : ""}`}
+                    {u.status_type==="transferred" && `Transferred -> ${u.new_boarding_house_name||""}${u.new_barangay ? ` (${u.new_barangay})` : ""}`}
                     {u.status_type==="moved_home"  && "Moved back home"}
                   </td>
-                  <td style={{maxWidth:200,fontSize:12,color:"#6b6457"}}>{u.note||"—"}</td>
+                  <td style={{maxWidth:200,fontSize:12,color:"#6b6457"}}>{u.note||"-"}</td>
                   <td>
                     {u.is_flagged
                       ? <span className="badge warn" title={u.flag_reason}>Flagged</span>

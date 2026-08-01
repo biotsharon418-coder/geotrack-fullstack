@@ -140,7 +140,7 @@ export default function OsasAccounts() {
                     <>
                       <td>{a.full_name}</td>
                       <td style={{ fontSize: 12, color: "#857d6c" }}>{a.email}</td>
-                      <td>{a.position || "—"}</td>
+                      <td>{a.position || "-"}</td>
                       <td>{a.full_name === fullName && <span className="badge ok">You</span>}</td>
                       <td>
                         <button className="btn" style={{ padding: "5px 10px", fontSize: 11, marginRight: 4 }} onClick={() => startEdit(a)}>Edit</button>
@@ -180,7 +180,7 @@ export default function OsasAccounts() {
                   <tr key={s.id} style={s.is_archived ? { opacity: 0.6 } : undefined}>
                     <td>{s.full_name}</td>
                     <td style={{ fontSize: 12, color: "#857d6c" }}>{s.email}</td>
-                    <td>{s.course_section || "—"}</td>
+                    <td>{s.course_section || "-"}</td>
                     <td style={{ fontSize: 12, color: "#a39c8a" }}>
                       {new Date(s.created_at).toLocaleDateString()}
                     </td>

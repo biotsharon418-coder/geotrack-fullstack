@@ -5,31 +5,12 @@
 
 .student-login-wrap{
   min-height:100vh; display:flex; align-items:center; justify-content:center;
-  background:#e7e2d4; padding:32px;
+  background:#e7e2d4; padding:24px;
 }
 .student-login-card{
-  display:grid; grid-template-columns:1fr 1fr; max-width:920px; width:100%;
-  background:var(--card); border:1px solid var(--line); border-radius:18px; overflow:hidden;
-  box-shadow:0 30px 60px -30px rgba(28,43,36,.35);
+  width:100%; max-width:380px; background:var(--card); border-radius:24px;
+  padding:32px 28px; box-shadow:0 30px 60px -30px rgba(28,43,36,.35);
 }
-.student-login-brand{
-  background:
-    radial-gradient(circle at 30% 20%, rgba(193,80,46,.35), transparent 45%),
-    linear-gradient(165deg,var(--moss-dark),var(--moss) 70%);
-  color:#f3efe4; padding:48px 40px; display:flex; flex-direction:column; justify-content:space-between;
-  position:relative; overflow:hidden;
-}
-.student-login-brand::after{
-  content:""; position:absolute; right:-60px; bottom:-60px; width:220px; height:220px;
-  border:1px dashed rgba(243,239,228,.25); border-radius:50%;
-}
-.osas-brand-title{font-family:var(--font-display); font-size:32px; line-height:1.15; margin-top:28px; font-weight:600;}
-.osas-brand-sub{margin-top:14px; font-size:14px; line-height:1.55; color:#cfe0d7; max-width:300px;}
-.osas-brand-coords{
-  font-family:var(--font-mono); font-size:11px; color:#a9c4b6; letter-spacing:.05em;
-  border-top:1px solid rgba(243,239,228,.18); padding-top:16px; margin-top:32px;
-}
-.student-login-form{padding:44px 36px; display:flex; flex-direction:column; justify-content:center; overflow-y:auto; max-height:100vh;}
 .form-eyebrow{
   font-family:var(--font-mono); font-size:10.5px; letter-spacing:.1em; text-transform:uppercase;
   color:#857d6c;
@@ -51,42 +32,14 @@
 }
 .scope-note a{color:var(--moss-dark); font-weight:700;}
 
-/* Below tablet width there's no room for two panes side by side --
-   drop the brand panel and let the form fill the screen, same as
-   the OSAS login does at its own breakpoint. */
-@media (max-width:760px){
-  .student-login-card{grid-template-columns:1fr; max-width:440px;}
-  .student-login-brand{display:none;}
-}
-
 /* ---------- mobile shell used by every student page after login ---------- */
 .student-shell{
-  min-height:100vh; background:#e7e2d4; display:flex; align-items:center; justify-content:center;
-  gap:0; padding:24px;
-}
-.student-shell-brand{
-  display:none; /* shown on wide/desktop screens only, see breakpoint below */
-  width:340px; align-self:stretch; flex-shrink:0;
-  background:
-    radial-gradient(circle at 30% 20%, rgba(193,80,46,.35), transparent 45%),
-    linear-gradient(165deg,var(--moss-dark),var(--moss) 70%);
-  color:#f3efe4; padding:48px 36px; flex-direction:column; justify-content:space-between;
-  position:relative; overflow:hidden; border-radius:28px 0 0 28px;
-}
-.student-shell-brand::after{
-  content:""; position:absolute; right:-60px; bottom:-60px; width:220px; height:220px;
-  border:1px dashed rgba(243,239,228,.25); border-radius:50%;
+  min-height:100vh; background:#e7e2d4; display:flex; justify-content:center; padding:24px;
 }
 .student-phone{
   width:100%; max-width:420px; background:var(--paper); border-radius:28px;
-  min-height:760px; max-height:90vh; display:flex; flex-direction:column; overflow:hidden;
+  min-height:760px; display:flex; flex-direction:column; overflow:hidden;
   box-shadow:0 30px 60px -30px rgba(28,43,36,.35);
-}
-/* Above ~900px there's room for the brand panel beside the phone --
-   below that, on tablets and phones, it stays a single centered app. */
-@media (min-width:900px){
-  .student-shell-brand{display:flex;}
-  .student-phone{border-radius:0 28px 28px 0;}
 }
 .student-header{padding:24px 22px 12px; flex-shrink:0;}
 .student-header .greet{font-size:12px; color:#857d6c;}
@@ -135,39 +88,3 @@
 
 .back-row{display:flex; align-items:center; gap:10px;}
 .back-row button{background:none; border:none; font-size:18px; cursor:pointer; padding:0 4px;}
-
-/* ---------- responsive: tablets & small laptops ---------- */
-@media (max-width:900px){
-  .student-shell{padding:16px;}
-  .student-phone{max-width:460px;}
-}
-
-/* ---------- responsive: phones ----------
-   Below ~560px the "phone inside a card" look stops making sense --
-   the browser viewport already IS a phone screen, so the app should
-   fill it edge-to-edge instead of floating a small rounded card with
-   big margins around it. */
-@media (max-width:560px){
-  .student-login-wrap{padding:0; align-items:stretch;}
-  .student-login-card{
-    max-width:100%; min-height:100vh; border-radius:0;
-    display:flex; flex-direction:column; justify-content:center;
-    padding:28px 20px;
-  }
-
-  .student-shell{padding:0; min-height:100vh;}
-  .student-phone{
-    max-width:100%; width:100%; min-height:100vh; border-radius:0; box-shadow:none;
-  }
-  .student-header{padding:20px 16px 10px;}
-  .student-body{padding:6px 16px 18px;}
-  .form-title{font-size:21px;}
-  .bottom-nav{padding-bottom:calc(14px + env(safe-area-inset-bottom, 0px));}
-}
-
-/* ---------- responsive: very narrow phones (~320-360px) ---------- */
-@media (max-width:360px){
-  .student-header h2{font-size:19px;}
-  .pill-row{flex-wrap:wrap;}
-  .nav-btn{font-size:9px;}
-}

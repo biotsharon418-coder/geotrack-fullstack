@@ -1,4 +1,4 @@
-// src/pages/osas/OsasAuditLogs.jsx — Activity / Audit logs
+// src/pages/osas/OsasAuditLogs.jsx - Activity / Audit logs
 import { useEffect, useState } from "react";
 import { api } from "../../api/client";
 
@@ -46,7 +46,7 @@ export default function OsasAuditLogs() {
       <div className="osas-main-head">
         <div>
           <div className="osas-main-title">Activity logs</div>
-          <div className="osas-main-sub">Full audit trail — who did what, to which resource, and when.</div>
+          <div className="osas-main-sub">Full audit trail - who did what, to which resource, and when.</div>
         </div>
       </div>
 
@@ -57,7 +57,7 @@ export default function OsasAuditLogs() {
         <div style={{display:"flex",gap:12,flexWrap:"wrap",alignItems:"flex-end"}}>
           <div className="field" style={{flex:1,minWidth:200,marginBottom:0}}>
             <label>Search</label>
-            <input placeholder="Search by name, resource, action…" value={search}
+            <input placeholder="Search by name, resource, action..." value={search}
               onChange={e => setSearch(e.target.value)} />
           </div>
           <div className="field" style={{marginBottom:0}}>
@@ -81,7 +81,7 @@ export default function OsasAuditLogs() {
       </div>
 
       <div className="card">
-        {loading ? <div className="loading-text">Loading…</div>
+        {loading ? <div className="loading-text">Loading...</div>
         : filtered.length === 0 ? <div className="review-empty">No activity logs found.</div>
         : (
           <table>
@@ -116,7 +116,7 @@ export default function OsasAuditLogs() {
                     <div style={{color:"#544f43"}}>{l.resource_type?.replace("_"," ")}</div>
                     {l.resource_label && <div style={{fontSize:11,color:"#857d6c"}}>{l.resource_label}</div>}
                   </td>
-                  <td style={{fontSize:12,color:"#6b6457",maxWidth:260}}>{l.detail||"—"}</td>
+                  <td style={{fontSize:12,color:"#6b6457",maxWidth:260}}>{l.detail||"-"}</td>
                 </tr>
               ))}
             </tbody>

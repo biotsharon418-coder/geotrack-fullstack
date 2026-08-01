@@ -99,7 +99,7 @@ export default function DormDetail() {
   return (
     <>
       <div className="student-header back-row">
-        <button onClick={() => navigate("/student/directory")}>←</button>
+        <button onClick={() => navigate("/student/directory")}>Back</button>
         <div>
           <div className="greet">{house?.barangay || "Boarding house"}</div>
           <h2>{house?.name || `House #${houseId}`}</h2>
@@ -124,7 +124,7 @@ export default function DormDetail() {
           {loading ? (
             <div className="loading-text">Loading...</div>
           ) : reviews.length === 0 ? (
-            <div className="review-empty">No reviews yet — be the first to share your experience.</div>
+            <div className="review-empty">No reviews yet - be the first to share your experience.</div>
           ) : (
             reviews.map((r) => {
               const isMine = myReviewIds.has(r.id);
@@ -204,7 +204,7 @@ export default function DormDetail() {
             </button>
           </form>
           <div style={{ fontSize: 11, color: "#a39c8a", marginTop: 8, textAlign: "center" }}>
-            Your review is posted anonymously — your name is never shown, only "Unknown".
+            Your review is posted anonymously - your name is never shown, only "Unknown".
           </div>
         </div>
       </div>

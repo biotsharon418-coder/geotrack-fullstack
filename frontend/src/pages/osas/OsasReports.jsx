@@ -1,4 +1,4 @@
-// src/pages/osas/OsasReports.jsx â€” multi-select grouping, charts, preview, PDF/Excel/CSV export
+// src/pages/osas/OsasReports.jsx - multi-select grouping, charts, preview, PDF/Excel/CSV export
 import { useState } from "react";
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend } from "recharts";
 import { api } from "../../api/client";
@@ -92,12 +92,12 @@ export default function OsasReports() {
         </div>
         <div style={{display:"flex",gap:10,marginTop:14,flexWrap:"wrap"}}>
           <button className="btn primary" onClick={handleGenerate} disabled={loading||!selected.length}>
-            {loading ? "Generatingâ€¦" : "Generate & preview"}
+            {loading ? "Generating..." : "Generate & preview"}
           </button>
           {report && <>
-            <button className="btn" onClick={()=>handleExport("pdf")} style={{color:"var(--pin)"}}>â¬‡ PDF</button>
-            <button className="btn" onClick={()=>handleExport("excel")} style={{color:"var(--moss)"}}>â¬‡ Excel</button>
-            <button className="btn" onClick={()=>handleExport("csv")} style={{color:"#6b6457"}}>â¬‡ CSV</button>
+            <button className="btn" onClick={()=>handleExport("pdf")} style={{color:"var(--pin)"}}>Download PDF</button>
+            <button className="btn" onClick={()=>handleExport("excel")} style={{color:"var(--moss)"}}>Download Excel</button>
+            <button className="btn" onClick={()=>handleExport("csv")} style={{color:"#6b6457"}}>Download CSV</button>
           </>}
         </div>
       </div>
@@ -110,21 +110,19 @@ export default function OsasReports() {
               {report.sections.map(sec => (
                 <div className="card" key={`chart-${sec.group_by}`}>
                   <div className="panel-title" style={{marginBottom:10}}>
-                    {SECTION_LABELS[sec.group_by]||sec.group_by} â€” chart
+                    {SECTION_LABELS[sec.group_by]||sec.group_by} - chart
                   </div>
                   {sec.rows.length === 0
                     ? <div className="review-empty">No data.</div>
                     : sec.rows.length <= 5
-                    ? <ResponsiveContainer width="100%" height={240}>
-                        <PieChart margin={{top:8,right:8,bottom:8,left:8}}>
+                    ? <ResponsiveContainer width="100%" height={180}>
+                        <PieChart>
                           <Pie data={sec.rows} dataKey="count" nameKey="group_label"
-                            cx="50%" cy="46%" outerRadius={75}>
+                            cx="50%" cy="50%" outerRadius={70}
+                            label={({group_label,count})=>`${group_label}: ${count}`}>
                             {sec.rows.map((_,i)=><Cell key={i} fill={COLORS[i%COLORS.length]}/>)}
                           </Pie>
-                          <Tooltip formatter={(value, name) => [value, name]} />
-                          <Legend verticalAlign="bottom" height={48}
-                            formatter={(value, entry) => `${value}: ${entry.payload.count}`}
-                            wrapperStyle={{ fontSize: 11, lineHeight: "16px" }} />
+                          <Tooltip /><Legend />
                         </PieChart>
                       </ResponsiveContainer>
                     : <ResponsiveContainer width="100%" height={180}>
@@ -146,7 +144,7 @@ export default function OsasReports() {
             <div className="card" key={sec.group_by} style={{marginBottom:18}}>
               <div className="panel-title">
                 {SECTION_LABELS[sec.group_by]||sec.group_by}
-                {report.month_label ? ` Â· ${report.month_label}` : " Â· All months"}
+                {report.month_label ? ` - ${report.month_label}` : " - All months"}
               </div>
               <table>
                 <tbody>
@@ -157,7 +155,7 @@ export default function OsasReports() {
                         <tr key={row.group_label}>
                           <td style={{verticalAlign:"top"}}>{row.group_label}</td>
                           <td style={{verticalAlign:"top"}}>{row.count}</td>
-                          <td style={{fontSize:12,color:"#544f43"}}>{row.student_names?.join(", ")||"â€”"}</td>
+                          <td style={{fontSize:12,color:"#544f43"}}>{row.student_names?.join(", ")||"-"}</td>
                         </tr>
                     ))}
                   <tr><td style={{fontWeight:700}}>Total</td><td style={{fontWeight:700}}>{sec.total}</td><td></td></tr>
@@ -167,10 +165,10 @@ export default function OsasReports() {
           ))}
 
           <div className="no-print" style={{display:"flex",gap:10,marginBottom:18}}>
-            <button className="btn primary" onClick={()=>window.print()}>ðŸ–¨ Print report</button>
-            <button className="btn" onClick={()=>handleExport("pdf")} style={{color:"var(--pin)"}}>â¬‡ Download PDF</button>
-            <button className="btn" onClick={()=>handleExport("excel")} style={{color:"var(--moss)"}}>â¬‡ Download Excel</button>
-            <button className="btn" onClick={()=>handleExport("csv")} style={{color:"#6b6457"}}>â¬‡ Download CSV</button>
+            <button className="btn primary" onClick={()=>window.print()}>Print Print report</button>
+            <button className="btn" onClick={()=>handleExport("pdf")} style={{color:"var(--pin)"}}>Download Download PDF</button>
+            <button className="btn" onClick={()=>handleExport("excel")} style={{color:"var(--moss)"}}>Download Download Excel</button>
+            <button className="btn" onClick={()=>handleExport("csv")} style={{color:"#6b6457"}}>Download Download CSV</button>
           </div>
         </div>
       )}

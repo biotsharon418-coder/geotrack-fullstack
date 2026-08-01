@@ -36,14 +36,14 @@ export default function App() {
         <Routes>
           <Route path="/" element={<Navigate to="/student/login" replace />} />
 
-          {/* ── Student (public) ── */}
+          {/* -- Student (public) -- */}
           <Route path="/student/login"          element={<StudentLogin />} />
           <Route path="/student/forgot-password" element={<ForgotPassword />} />
           <Route path="/student/reset-password"  element={<ResetPassword />} />
           <Route path="/student/verify-otp"      element={<VerifyOTP />} />
           <Route path="/student/2fa-verify"      element={<TwoFAVerify />} />
 
-          {/* ── Student (protected) ── */}
+          {/* -- Student (protected) -- */}
           <Route path="/student" element={
             <ProtectedRoute requiredRole="student"><StudentLayout /></ProtectedRoute>
           }>
@@ -55,10 +55,10 @@ export default function App() {
             <Route path="profile"          element={<StudentProfile />} />
           </Route>
 
-          {/* ── OSAS (public) ── */}
+          {/* -- OSAS (public) -- */}
           <Route path="/osas/login" element={<OsasLogin />} />
 
-          {/* ── OSAS (protected) ── */}
+          {/* -- OSAS (protected) -- */}
           <Route path="/osas" element={
             <ProtectedRoute requiredRole="osas_admin"><OsasLayout /></ProtectedRoute>
           }>

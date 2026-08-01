@@ -28,7 +28,7 @@ export default function StudentHome() {
         <h2>Hi, {firstName}</h2>
       </div>
       <div className="student-body">
-        {/* Only show pending-update banner — no "already submitted" banner
+        {/* Only show pending-update banner - no "already submitted" banner
             that would re-appear every sign-in. Clean home screen once done. */}
         {hasSubmittedThisMonth === false && (
           <div className="status-banner">
@@ -36,7 +36,7 @@ export default function StudentHome() {
               <div className="label">Monthly status update</div>
               <div className="sub">Confirm where you're staying this month</div>
             </div>
-            <button className="go" onClick={() => navigate("/student/status")}>Update →</button>
+            <button className="go" onClick={() => navigate("/student/status")}>Update</button>
           </div>
         )}
 

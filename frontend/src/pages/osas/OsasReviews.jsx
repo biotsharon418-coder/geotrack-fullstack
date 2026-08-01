@@ -38,7 +38,7 @@ export default function OsasReviews() {
       <div className="osas-main-head">
         <div>
           <div className="osas-main-title">Student reviews</div>
-          <div className="osas-main-sub">Reviews are anonymous to OSAS as well — every entry shows as "Unknown".</div>
+          <div className="osas-main-sub">Reviews are anonymous to OSAS as well - every entry shows as "Unknown".</div>
         </div>
       </div>
 
@@ -77,7 +77,7 @@ export default function OsasReviews() {
         )}
 
         <div style={{ fontSize: 11.5, color: "#a39c8a", marginTop: 10 }}>
-          Reviewer identities are not shown to OSAS or other students — all entries display as
+          Reviewer identities are not shown to OSAS or other students - all entries display as
           "Unknown" to keep feedback honest.
         </div>
       </div>

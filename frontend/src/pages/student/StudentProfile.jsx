@@ -55,7 +55,7 @@ export default function StudentProfile() {
         {error && <div className="error-banner">{error}</div>}
         {success && <div className="error-banner" style={{background:"#e1f0e6",color:"var(--ok)"}}>{success}</div>}
 
-        {loading ? <div className="loading-text">Loading…</div>
+        {loading ? <div className="loading-text">Loading...</div>
         : !editing ? (
           <div className="card">
             <div className="card-title">Profile details</div>
@@ -88,7 +88,7 @@ export default function StudentProfile() {
                 </select>
               </div>
               <div className="pill-row">
-                <button className="btn primary" disabled={saving}>{saving?"Saving…":"Save changes"}</button>
+                <button className="btn primary" disabled={saving}>{saving?"Saving...":"Save changes"}</button>
                 <button type="button" className="btn" onClick={() => setEditing(false)}>Cancel</button>
               </div>
             </form>

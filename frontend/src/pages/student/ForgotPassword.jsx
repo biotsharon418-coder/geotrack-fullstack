@@ -56,7 +56,7 @@ export default function ForgotPassword() {
                 />
               </div>
               <button className="btn primary" style={{ width: "100%", padding: 13 }} disabled={loading}>
-                {loading ? "Sending…" : "Send reset link"}
+                {loading ? "Sending..." : "Send reset link"}
               </button>
             </form>
           </>
@@ -76,7 +76,7 @@ export default function ForgotPassword() {
                 border: "1px solid #e0cc88", marginBottom: 16, fontSize: 12, lineHeight: 1.7,
               }}>
                 <div style={{ fontWeight: 700, color: "#7a6010", marginBottom: 4 }}>
-                  📋 School demo — reset token (copy this):
+                  School demo - reset token (copy this):
                 </div>
                 <div style={{
                   fontFamily: "var(--font-mono)", fontSize: 11, background: "#fff",
@@ -97,7 +97,7 @@ export default function ForgotPassword() {
               style={{ width: "100%", padding: 13, marginBottom: 10 }}
               onClick={() => navigate(`/student/reset-password${demoToken ? `?token=${demoToken}` : ""}`)}
             >
-              Enter reset token →
+              Enter reset token
             </button>
           </>
         )}
@@ -108,7 +108,7 @@ export default function ForgotPassword() {
             onClick={() => navigate("/student/login")}
             style={{ background: "none", border: "none", color: "var(--moss)", fontWeight: 700, cursor: "pointer", fontSize: 12.5, fontFamily: "inherit" }}
           >
-            ← Back to sign in
+            Back to sign in
           </button>
         </div>
       </div>

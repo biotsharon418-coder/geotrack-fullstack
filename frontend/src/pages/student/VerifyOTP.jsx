@@ -43,7 +43,7 @@ export default function VerifyOTP() {
 
         {demoOtp && (
           <div style={{padding:"10px 12px",background:"#faf4e4",borderRadius:8,border:"1px solid #e0cc88",marginBottom:14,fontSize:12,color:"#7a6010"}}>
-            📋 <strong>Demo code:</strong> <span style={{fontFamily:"var(--font-mono)",fontWeight:700}}>{demoOtp}</span>
+            <strong>Demo code:</strong> <span style={{fontFamily:"var(--font-mono)",fontWeight:700}}>{demoOtp}</span>
             <div style={{fontSize:11,marginTop:3,color:"#8a7020"}}>In production this is sent to the email only.</div>
           </div>
         )}
@@ -59,7 +59,7 @@ export default function VerifyOTP() {
               style={{fontFamily:"var(--font-mono)",fontSize:22,letterSpacing:6,textAlign:"center",padding:"14px"}} />
           </div>
           <button className="btn primary" style={{width:"100%",padding:13}} disabled={loading||otp.length!==6}>
-            {loading ? "Verifying…" : "Verify email"}
+            {loading ? "Verifying..." : "Verify email"}
           </button>
         </form>
 

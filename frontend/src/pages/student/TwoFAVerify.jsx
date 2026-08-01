@@ -1,4 +1,4 @@
-// src/pages/student/TwoFAVerify.jsx — enter TOTP code after password check
+// src/pages/student/TwoFAVerify.jsx - enter TOTP code after password check
 import { useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { api } from "../../api/client";
@@ -44,13 +44,13 @@ export default function TwoFAVerify() {
               style={{fontFamily:"var(--font-mono)",fontSize:22,letterSpacing:6,textAlign:"center",padding:"14px"}} />
           </div>
           <button className="btn primary" style={{width:"100%",padding:13}} disabled={loading||code.length!==6}>
-            {loading ? "Verifying…" : "Verify"}
+            {loading ? "Verifying..." : "Verify"}
           </button>
         </form>
         <div style={{textAlign:"center",marginTop:14}}>
           <button type="button" onClick={() => navigate("/student/login")}
             style={{background:"none",border:"none",color:"var(--moss)",fontWeight:700,cursor:"pointer",fontSize:12.5,fontFamily:"inherit"}}>
-            ← Back to sign in
+            Back to sign in
           </button>
         </div>
       </div>

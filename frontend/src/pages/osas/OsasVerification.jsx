@@ -119,7 +119,7 @@ export default function OsasVerification() {
       {error && <div className="error-banner">{error}</div>}
 
       <div className="card">
-        {loading ? <div className="loading-text">Loading…</div>
+        {loading ? <div className="loading-text">Loading...</div>
         : houses.length === 0 ? <div className="review-empty">No boarding houses submitted yet. Students add them when they register or update their monthly status.</div>
         : (
           <table>
@@ -142,10 +142,10 @@ export default function OsasVerification() {
                           <input value={editForm.address||""} onChange={e => setEditForm({...editForm,address:e.target.value})} style={{width:140,fontSize:11,padding:2}} placeholder="optional" />
                           {" "}
                           <button type="button" className="btn" style={{padding:"3px 8px",fontSize:10}} onClick={handleEditGeocode} disabled={editGeocoding}>
-                            {editGeocoding ? "Finding…" : "Re-pin location"}
+                            {editGeocoding ? "Finding..." : "Re-pin location"}
                           </button>
                           {editGeoError && <div style={{color:"var(--pin)",fontSize:10,marginTop:3}}>{editGeoError}</div>}
-                          {editPinned && <div style={{color:"var(--ok)",fontSize:10,marginTop:3}}>📍 {editPinned.displayName}</div>}
+                          {editPinned && <div style={{color:"var(--ok)",fontSize:10,marginTop:3}}>{editPinned.displayName}</div>}
                           {showEditMap && editPinned && (
                             <div style={{height:160,borderRadius:8,overflow:"hidden",marginTop:8,border:"1px solid var(--line)"}}>
                               <MapContainer center={[editPinned.lat,editPinned.lng]} zoom={16}
@@ -166,7 +166,7 @@ export default function OsasVerification() {
                       <>
                         <td>{h.name}</td>
                         <td>{h.barangay}</td>
-                        <td style={{fontSize:12,color:"#6b6457"}}>{h.submitted_by||"—"}</td>
+                        <td style={{fontSize:12,color:"#6b6457"}}>{h.submitted_by||"-"}</td>
                         <td><span className={`badge ${h.is_verified?"ok":"pending"}`}>{h.is_verified?"Verified":"Pending"}</span></td>
                         <td style={{whiteSpace:"nowrap"}}>
                           {!h.is_verified && <button className="btn primary" style={{padding:"5px 10px",fontSize:11,marginRight:4}} onClick={() => handleVerify(h.id)}>Verify</button>}
@@ -182,7 +182,7 @@ export default function OsasVerification() {
                   {expandedHouseId === h.id && (
                     <tr key={`reviews-${h.id}`}>
                       <td colSpan={5} style={{background:"#faf9f5",padding:"8px 12px"}}>
-                        {!reviewsByHouse[h.id] ? <div className="loading-text">Loading reviews…</div>
+                        {!reviewsByHouse[h.id] ? <div className="loading-text">Loading reviews...</div>
                         : reviewsByHouse[h.id].length === 0 ? <div className="review-empty">No reviews yet.</div>
                         : reviewsByHouse[h.id].map(r => (
                           <div className="review-item" key={r.id}>

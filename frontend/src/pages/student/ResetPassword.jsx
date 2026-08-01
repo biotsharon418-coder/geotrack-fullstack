@@ -60,7 +60,7 @@ export default function ResetPassword() {
 
         {success ? (
           <div style={{ padding: "14px 16px", background: "#e1f0e6", borderRadius: 10, fontSize: 13, color: "var(--ok)", lineHeight: 1.6 }}>
-            ✓ Password updated! Redirecting to sign in…
+            Password updated! Redirecting to sign in...
           </div>
         ) : (
           <>
@@ -98,7 +98,7 @@ export default function ResetPassword() {
                       <div style={{ height: "100%", width: `${strength.pct}%`, background: strength.color, transition: "all .25s" }} />
                     </div>
                     <div style={{ fontSize: 11, color: strength.color, marginTop: 3 }}>
-                      {strength.label} — 8+ chars, upper, lower, number, special character.
+                      {strength.label} - 8+ chars, upper, lower, number, special character.
                     </div>
                   </div>
                 )}
@@ -118,7 +118,7 @@ export default function ResetPassword() {
 
               <button className="btn primary" style={{ width: "100%", padding: 13 }}
                 disabled={loading || mismatch || !token}>
-                {loading ? "Updating…" : "Set new password"}
+                {loading ? "Updating..." : "Set new password"}
               </button>
             </form>
           </>
@@ -128,7 +128,7 @@ export default function ResetPassword() {
           <button type="button" onClick={() => navigate("/student/login")} style={{
             background: "none", border: "none", color: "var(--moss)", fontWeight: 700,
             cursor: "pointer", fontSize: 12.5, fontFamily: "inherit",
-          }}>← Back to sign in</button>
+          }}>Back to sign in</button>
         </div>
       </div>
     </div>

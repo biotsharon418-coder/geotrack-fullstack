@@ -42,7 +42,7 @@ export default function StudentDirectory() {
                   <div className="listing-name">{h.name}</div>
                   <div className="listing-meta">
                     {h.barangay}
-                    {h.monthly_rate ? ` · ₱${h.monthly_rate}/mo` : ""}
+                    {h.monthly_rate ? ` - ₱${h.monthly_rate}/mo` : ""}
                   </div>
                 </div>
                 <span className={`badge ${h.is_verified ? "ok" : "pending"}`}>

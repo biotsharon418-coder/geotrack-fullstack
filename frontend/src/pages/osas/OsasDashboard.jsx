@@ -1,4 +1,4 @@
-// src/pages/osas/OsasDashboard.jsx â€” with charts, stats, recent activities
+// src/pages/osas/OsasDashboard.jsx - with charts, stats, recent activities
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend } from "recharts";
@@ -9,8 +9,8 @@ import OsasGeoMap from "../../components/OsasGeoMap";
 const COLORS = ["#2f5d4f","#c1502e","#d4a017","#5a8a3c","#6b6457","#203f36","#e07b39","#3c7a5c"];
 
 function ActionIcon({ action }) {
-  const icons = { create:"âœš", update:"âœŽ", delete:"âœ•", flag:"âš‘", verify:"âœ”", archive:"ðŸ“¦", login:"â†’", logout:"â†", export:"â†“" };
-  return <span style={{marginRight:6}}>{icons[action]||"â€¢"}</span>;
+  const icons = { create:"+", update:"(edit)", delete:"x", flag:"(flag)", verify:"(ok)", archive:"", login:"->", logout:"<-", export:"v" };
+  return <span style={{marginRight:6}}>{icons[action]||"-"}</span>;
 }
 
 export default function OsasDashboard() {
@@ -42,7 +42,7 @@ export default function OsasDashboard() {
 
       {stats && (
         <>
-          {/* â”€â”€ Stat cards â”€â”€ */}
+          {/* -- Stat cards -- */}
           <div className="osas-grid osas-stat-row">
             {[
               { label:"Total students",       val:stats.total_students,         tag:"registered accounts",  color:"var(--ink)" },
@@ -58,7 +58,7 @@ export default function OsasDashboard() {
             ))}
           </div>
 
-          {/* â”€â”€ Map + Flagged â”€â”€ */}
+          {/* -- Map + Flagged -- */}
           <div className="osas-grid osas-two-col" style={{marginBottom:18}}>
             <div className="card">
               <div className="panel-title">Geo-tagged student locations</div>
@@ -77,7 +77,7 @@ export default function OsasDashboard() {
                     {flagged.slice(0,6).map(u => (
                       <tr key={u.id}>
                         <td>{u.student_name}</td>
-                        <td style={{fontSize:12,color:"#6b6457"}}>{u.flag_reason||"â€”"}</td>
+                        <td style={{fontSize:12,color:"#6b6457"}}>{u.flag_reason||"-"}</td>
                         <td><span className="badge warn">Flagged</span></td>
                       </tr>
                     ))}
@@ -86,22 +86,19 @@ export default function OsasDashboard() {
             </div>
           </div>
 
-          {/* â”€â”€ Charts â”€â”€ */}
+          {/* -- Charts -- */}
           <div className="osas-grid osas-two-col" style={{marginBottom:18}}>
             <div className="card">
               <div className="panel-title">Students by gender</div>
               {stats.by_gender.length === 0
                 ? <div className="review-empty">No data yet.</div>
-                : <ResponsiveContainer width="100%" height={260}>
-                    <PieChart margin={{top:8,right:8,bottom:8,left:8}}>
+                : <ResponsiveContainer width="100%" height={220}>
+                    <PieChart>
                       <Pie data={stats.by_gender} dataKey="count" nameKey="label"
-                           cx="50%" cy="46%" outerRadius={80}>
+                           cx="50%" cy="50%" outerRadius={80} label={({label,count})=>`${label}: ${count}`}>
                         {stats.by_gender.map((_,i) => <Cell key={i} fill={COLORS[i%COLORS.length]} />)}
                       </Pie>
                       <Tooltip />
-                      <Legend verticalAlign="bottom" height={40}
-                        formatter={(value, entry) => `${value}: ${entry.payload.count}`}
-                        wrapperStyle={{ fontSize: 11, lineHeight: "16px" }} />
                     </PieChart>
                   </ResponsiveContainer>
               }
@@ -141,28 +138,26 @@ export default function OsasDashboard() {
               <div className="panel-title">Monthly status breakdown</div>
               {stats.by_status.length === 0
                 ? <div className="review-empty">No status updates yet.</div>
-                : <ResponsiveContainer width="100%" height={260}>
-                    <PieChart margin={{top:8,right:8,bottom:8,left:8}}>
+                : <ResponsiveContainer width="100%" height={220}>
+                    <PieChart>
                       <Pie data={stats.by_status} dataKey="count" nameKey="label"
-                           cx="50%" cy="46%" innerRadius={45} outerRadius={80}>
+                           cx="50%" cy="50%" innerRadius={50} outerRadius={80}
+                           label={({label,count})=>`${label}: ${count}`}>
                         {stats.by_status.map((_,i) => <Cell key={i} fill={COLORS[i%COLORS.length]} />)}
                       </Pie>
-                      <Tooltip />
-                      <Legend verticalAlign="bottom" height={40}
-                        formatter={(value, entry) => `${value}: ${entry.payload.count}`}
-                        wrapperStyle={{ fontSize: 11, lineHeight: "16px" }} />
+                      <Tooltip /><Legend />
                     </PieChart>
                   </ResponsiveContainer>
               }
             </div>
           </div>
 
-          {/* â”€â”€ Recent activities â”€â”€ */}
+          {/* -- Recent activities -- */}
           <div className="card">
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
               <div className="panel-title" style={{marginBottom:0}}>Latest activities</div>
               <button className="btn" style={{fontSize:12,padding:"5px 12px"}}
-                onClick={() => navigate("/osas/audit-logs")}>View all â†’</button>
+                onClick={() => navigate("/osas/audit-logs")}>View all</button>
             </div>
             {stats.recent_activities.length === 0
               ? <div className="review-empty">No activity yet.</div>
