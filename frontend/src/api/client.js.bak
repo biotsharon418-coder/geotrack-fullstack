@@ -1,45 +1,15 @@
 // src/api/client.js - GeoTrack API v3
 const API_BASE_URL = import.meta.env.VITE_API_URL || "http://127.0.0.1:8000/api";
 
-// ===== Dual Session Support (Student + OSAS) =====
-
-function isOsasPortal() {
-  return window.location.pathname.startsWith("/osas");
-}
-
-function getPrefix() {
-  return isOsasPortal() ? "osas" : "student";
-}
-
-function getToken() {
-  return localStorage.getItem(`${getPrefix()}_token`);
-}
-
-function getRole() {
-  return localStorage.getItem(`${getPrefix()}_role`);
-}
-
-function getFullName() {
-  return localStorage.getItem(`${getPrefix()}_full_name`);
-}
-
+function getToken()   { return localStorage.getItem("geotrack_token"); }
+function getRole()    { return localStorage.getItem("geotrack_role"); }
 function setSession({ access_token, role, full_name }) {
-  const prefix = getPrefix();
-
-  localStorage.setItem(`${prefix}_token`, access_token);
-  localStorage.setItem(`${prefix}_role`, role);
-  localStorage.setItem(`${prefix}_full_name`, full_name);
-
-  window.dispatchEvent(new CustomEvent("geotrack:session-changed"));
+  localStorage.setItem("geotrack_token", access_token);
+  localStorage.setItem("geotrack_role", role);
+  localStorage.setItem("geotrack_full_name", full_name);
 }
-
 function clearSession() {
-  const prefix = getPrefix();
-
-  localStorage.removeItem(`${prefix}_token`);
-  localStorage.removeItem(`${prefix}_role`);
-  localStorage.removeItem(`${prefix}_full_name`);
-
+  ["geotrack_token","geotrack_role","geotrack_full_name"].forEach(k => localStorage.removeItem(k));
   window.dispatchEvent(new CustomEvent("geotrack:session-cleared"));
 }
 
@@ -67,7 +37,7 @@ async function loginRequest(email, password) {
 }
 
 export const api = {
-  getToken, getRole, getFullName, setSession, clearSession, loginRequest, AuthError,
+  getToken, getRole, setSession, clearSession, loginRequest, AuthError,
   registerStudent:  p => request("/auth/register/student", {method:"POST",body:p}),
   registerOsasAdmin:p => request("/auth/register/osas",   {method:"POST",body:p}),
   verifyOTP:        (email,otp) => request("/auth/verify-otp",{method:"POST",body:{email,otp}}),
