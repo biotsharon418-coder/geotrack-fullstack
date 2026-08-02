@@ -265,6 +265,31 @@ class StudentFlagOut(BaseModel):
         from_attributes = True
 
 
+# ─── Notifications ─────────────────────────────────────────────────────────────
+class NotificationOut(BaseModel):
+    id: int
+    category: str
+    title: str
+    message: str
+    is_read: bool
+    created_at: datetime
+    class Config: from_attributes = True
+
+
+# ─── Risk assessment ───────────────────────────────────────────────────────────
+class RiskAssessmentRow(BaseModel):
+    student_id: int
+    student_name: str
+    email: EmailStr
+    course_section: Optional[str] = None
+    missed_submissions: int
+    emergency_count: int
+    open_concern_count: int
+    compliance_score: int
+    risk_score: int
+    risk_level: str
+
+
 # ─── Emergency / SOS ──────────────────────────────────────────────────────────
 class SOSCreate(BaseModel):
     category: str

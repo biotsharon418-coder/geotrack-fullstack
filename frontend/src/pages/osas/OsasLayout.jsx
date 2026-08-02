@@ -46,12 +46,15 @@ export default function OsasLayout() {
         <nav style={{marginTop:18}}>
           {[
             ["/osas/dashboard",      "Geo-map overview"],
+            ["/osas/risk-assessment","Risk assessment"],
             ["/osas/status-updates", "Student status monitor"],
             ["/osas/verification",   "Boarding house verification"],
             ["/osas/reviews",        "Student reviews"],
             ["/osas/concerns",       "Reported concerns"],
             ["/osas/emergencies",    "Emergency / SOS cases"],
+            ["/osas/compliance",     "Compliance monitoring"],
             ["/osas/announcements",  "Announcements"],
+            ["/osas/notifications",  "Notifications"],
             ["/osas/reports",        "Reports"],
             ["/osas/audit-logs",     "Activity logs"],
             ["/osas/accounts",       "Account management"],

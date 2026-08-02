@@ -17,8 +17,10 @@ from sqlalchemy.orm import Session
 from sqlalchemy import and_, extract
 from datetime import datetime, timedelta
 
+from apscheduler.schedulers.background import BackgroundScheduler
+
 import models, schemas
-from database import engine, get_db, Base
+from database import engine, get_db, Base, SessionLocal
 from auth import hash_password, verify_password, create_access_token, require_student, require_osas_admin
 import email_utils
 from models import (
@@ -31,6 +33,7 @@ from models import (
     AuditLog,
     StudentCompliance,
     StudentFlag,
+    Notification,
 )
 
 Base.metadata.create_all(bind=engine)
@@ -49,6 +52,27 @@ ALLOWED_ORIGINS = [o.strip() for o in _origins_env.split(",") if o.strip()] or [
 ]
 app.add_middleware(CORSMiddleware, allow_origins=ALLOWED_ORIGINS,
                    allow_credentials=True, allow_methods=["*"], allow_headers=["*"])
+
+def _scheduled_compliance_sweep():
+    """Runs on its own DB session since it's not triggered by a request."""
+    db = SessionLocal()
+    try:
+        run_compliance_automation(db, actor=None)
+    finally:
+        db.close()
+
+scheduler = BackgroundScheduler(timezone="UTC")
+scheduler.add_job(_scheduled_compliance_sweep, "cron", hour=0, minute=10, id="compliance_daily_sweep")
+
+@app.on_event("startup")
+def _start_scheduler():
+    if not scheduler.running:
+        scheduler.start()
+
+@app.on_event("shutdown")
+def _stop_scheduler():
+    if scheduler.running:
+        scheduler.shutdown(wait=False)
 
 MAX_FAILED = 5
 LOCKOUT_MINS = 5
@@ -126,6 +150,9 @@ def check_monthly_compliance(db: Session):
                 if not was_flagged:
                     db.commit()
                     email_utils.notify_flagged(student.email, student.full_name, flag.missed_count)
+                    notify(db, student.id, "flagging", "You've been flagged for compliance",
+                           f"You missed {flag.missed_count} monthly submission(s) and have been flagged by OSAS. "
+                           "Please submit your status update as soon as possible.")
 
     db.commit()
 
@@ -140,6 +167,20 @@ def log_action(db: Session, actor: Optional[models.User], action: str,
         action=action, resource_type=resource_type,
         resource_id=resource_id, resource_label=resource_label, detail=detail,
     ))
+    db.commit()
+
+
+def notify(db: Session, user_id: Optional[int], category: str, title: str, message: str):
+    """Create an in-app notification for one user. Safe no-op if user_id is None."""
+    if not user_id:
+        return
+    db.add(models.Notification(user_id=user_id, category=category, title=title, message=message))
+    db.commit()
+
+
+def notify_all(db: Session, user_ids, category: str, title: str, message: str):
+    for uid in user_ids:
+        db.add(models.Notification(user_id=uid, category=category, title=title, message=message))
     db.commit()
 
 
@@ -594,6 +635,8 @@ def trigger_sos(payload: schemas.SOSCreate, db: Session = Depends(get_db),
     osas_admins = db.query(models.User).filter(models.User.role == "osas_admin").all()
     for admin in osas_admins:
         email_utils.notify_emergency_alert(admin.email, payload.category, user.full_name, payload.details)
+    notify_all(db, [a.id for a in osas_admins], "sos_alert", f"SOS: {payload.category}",
+               f"{user.full_name} triggered an SOS alert ({payload.category}).")
     db.refresh(case)
     return _emergency_out(case)
 
@@ -787,6 +830,9 @@ def flag_update(
     u.flag_reason = reason
     db.commit()
 
+    notify(db, u.student_id, "flagging", "Your status update was flagged",
+           f"Reason: {reason}")
+
     log_action(
         db,
         user,
@@ -811,6 +857,8 @@ def verify_bh(hid: int, db: Session = Depends(get_db), user: models.User = Depen
     log_action(db, user, "verify", "boarding_house", hid, h.name, "Boarding house verified")
     if h.submitter:
         email_utils.notify_boarding_house_approved(h.submitter.email, h.submitter.full_name, h.name)
+        notify(db, h.submitter.id, "approval", "Boarding house approved",
+               f"Your submission for \"{h.name}\" has been verified by OSAS.")
     return h
 
 @app.post("/api/osas/boarding-houses/{hid}/reject", response_model=schemas.BoardingHouseOut)
@@ -822,6 +870,8 @@ def reject_bh(hid: int, payload: schemas.BoardingHouseReject, db: Session = Depe
     log_action(db, user, "reject", "boarding_house", hid, h.name, payload.reason or "Boarding house rejected")
     if h.submitter:
         email_utils.notify_boarding_house_rejected(h.submitter.email, h.submitter.full_name, h.name, payload.reason)
+        notify(db, h.submitter.id, "rejection", "Boarding house rejected",
+               f"Your submission for \"{h.name}\" was rejected. Reason: {payload.reason or 'Not specified'}")
     return h
 
 @app.put("/api/osas/boarding-houses/{hid}", response_model=schemas.BoardingHouseOut)
@@ -861,6 +911,9 @@ def update_concern(cid: int, new_status: str, db: Session = Depends(get_db),
     c = db.query(models.Concern).get(cid)
     if not c: raise HTTPException(404, "Not found")
     c.status = new_status; db.commit()
+    if new_status == "resolved" and c.student_id:
+        notify(db, c.student_id, "resolution", "Your concern was resolved",
+               f"Your reported concern ({c.category}) has been marked resolved by OSAS.")
     log_action(db, user, "update", "concern", cid,
                c.student.full_name if c.student else None, f"Status → {new_status}")
     return {"message": "Updated"}
@@ -995,6 +1048,8 @@ def send_announcement(payload: schemas.AnnouncementCreate, db: Session = Depends
     for s in students:
         if email_utils.notify_announcement(s.email, s.full_name, payload.subject, payload.message):
             sent += 1
+
+    notify_all(db, [s.id for s in students], "announcement", payload.subject, payload.message)
 
     log_action(db, user, "create", "announcement", None, payload.subject,
                f"Sent to {sent}/{len(students)} student(s) ({payload.audience}): {payload.message[:200]}")
@@ -1237,9 +1292,13 @@ def send_compliance_reminders(
 
         if is_final:
             sent = email_utils.notify_final_reminder(student.email, student.full_name, month_label)
+            notify(db, student.id, "final_reminder", "Final reminder: submission due soon",
+                   f"Your {month_label} status update is still pending and the deadline is near.")
         else:
             sent = email_utils.notify_monthly_reminder(
                 student.email, student.full_name, month_label, COMPLIANCE_DEADLINE_DAY)
+            notify(db, student.id, "monthly_reminder", "Monthly submission reminder",
+                   f"Please submit your {month_label} status update before day {COMPLIANCE_DEADLINE_DAY}.")
 
         reminders.append({
             "student": student.full_name,
@@ -1296,10 +1355,15 @@ def check_missed_submissions(
 
                  flag.missed_count += 1
 
+            was_flagged = flag.is_flagged
             if flag.missed_count >= 3:
                 flag.is_flagged = True
                 flag.compliance_status = "Flagged"
                 flag.reason = "Three consecutive missed submissions"
+                if not was_flagged:
+                    db.commit()
+                    notify(db, compliance.student_id, "flagging", "You've been flagged for compliance",
+                           f"You have {flag.missed_count} missed submission(s) and have been flagged by OSAS.")
 
             missed_count += 1
 
@@ -1402,10 +1466,15 @@ def update_student_flags(
 
             flag.missed_count = missed
 
+        was_flagged = flag.is_flagged
         if missed >= 3:
             flag.is_flagged = True
             flag.compliance_status = "Flagged"
             flag.reason = "Student missed three or more monthly submissions."
+            if not was_flagged:
+                db.commit()
+                notify(db, student.id, "flagging", "You've been flagged for compliance",
+                       f"You have {missed} missed submission(s) and have been flagged by OSAS.")
         else:
             flag.is_flagged = False
             flag.compliance_status = "Good"
@@ -1461,6 +1530,195 @@ def compliance_report(
         })
 
     return results
+
+# ─── Notifications ────────────────────────────────────────────────────────────
+@app.get("/api/student/notifications", response_model=List[schemas.NotificationOut])
+def student_notifications(db: Session = Depends(get_db), user: models.User = Depends(require_student)):
+    return (db.query(models.Notification)
+            .filter(models.Notification.user_id == user.id)
+            .order_by(models.Notification.created_at.desc()).all())
+
+@app.patch("/api/student/notifications/{nid}/read")
+def student_mark_notification_read(nid: int, db: Session = Depends(get_db),
+                                   user: models.User = Depends(require_student)):
+    n = db.query(models.Notification).get(nid)
+    if not n or n.user_id != user.id: raise HTTPException(404, "Not found")
+    n.is_read = True; db.commit()
+    return {"message": "Marked as read"}
+
+@app.patch("/api/student/notifications/read-all")
+def student_mark_all_notifications_read(db: Session = Depends(get_db),
+                                        user: models.User = Depends(require_student)):
+    db.query(models.Notification).filter(
+        models.Notification.user_id == user.id, models.Notification.is_read == False
+    ).update({"is_read": True})
+    db.commit()
+    return {"message": "All marked as read"}
+
+@app.get("/api/osas/notifications", response_model=List[schemas.NotificationOut])
+def osas_notifications(db: Session = Depends(get_db), user: models.User = Depends(require_osas_admin)):
+    return (db.query(models.Notification)
+            .filter(models.Notification.user_id == user.id)
+            .order_by(models.Notification.created_at.desc()).all())
+
+@app.patch("/api/osas/notifications/{nid}/read")
+def osas_mark_notification_read(nid: int, db: Session = Depends(get_db),
+                                user: models.User = Depends(require_osas_admin)):
+    n = db.query(models.Notification).get(nid)
+    if not n or n.user_id != user.id: raise HTTPException(404, "Not found")
+    n.is_read = True; db.commit()
+    return {"message": "Marked as read"}
+
+@app.patch("/api/osas/notifications/read-all")
+def osas_mark_all_notifications_read(db: Session = Depends(get_db),
+                                     user: models.User = Depends(require_osas_admin)):
+    db.query(models.Notification).filter(
+        models.Notification.user_id == user.id, models.Notification.is_read == False
+    ).update({"is_read": True})
+    db.commit()
+    return {"message": "All marked as read"}
+
+
+# ─── Compliance: combined automation sweep ────────────────────────────────────
+def run_compliance_automation(db: Session, actor: Optional[models.User] = None):
+    """Runs the full daily sweep: ensure this month's records exist, detect
+    missed submissions, recompute flags, and send reminder emails/notifications.
+    Used by both the manual 'Run automation now' button and the scheduler."""
+    check_monthly_compliance(db)
+
+    now = datetime.utcnow()
+    compliances = db.query(models.StudentCompliance).filter(
+        models.StudentCompliance.submission_status == "Pending"
+    ).all()
+    missed_count = 0
+    for compliance in compliances:
+        if compliance.deadline and now > compliance.deadline:
+            compliance.submission_status = "Missed"
+            compliance.remarks = "Submission deadline missed"
+            flag = db.query(models.StudentFlag).filter(
+                models.StudentFlag.student_id == compliance.student_id).first()
+            if not flag:
+                flag = models.StudentFlag(student_id=compliance.student_id, missed_count=1, is_flagged=False)
+                db.add(flag)
+            else:
+                flag.missed_count += 1
+            was_flagged = flag.is_flagged
+            if flag.missed_count >= 3:
+                flag.is_flagged = True
+                flag.compliance_status = "Flagged"
+                flag.reason = "Three consecutive missed submissions"
+                if not was_flagged:
+                    db.commit()
+                    notify(db, compliance.student_id, "flagging", "You've been flagged for compliance",
+                           f"You have {flag.missed_count} missed submission(s) and have been flagged by OSAS.")
+            missed_count += 1
+    db.commit()
+
+    students = db.query(models.User).filter(models.User.role == "student").all()
+    flags_updated = 0
+    for student in students:
+        missed = db.query(models.StudentCompliance).filter(
+            models.StudentCompliance.student_id == student.id,
+            models.StudentCompliance.submission_status == "Missed").count()
+        flag = db.query(models.StudentFlag).filter(models.StudentFlag.student_id == student.id).first()
+        if not flag:
+            flag = models.StudentFlag(student_id=student.id, missed_count=missed, is_flagged=False)
+            db.add(flag)
+        else:
+            flag.missed_count = missed
+        was_flagged = flag.is_flagged
+        if missed >= 3:
+            flag.is_flagged = True
+            flag.compliance_status = "Flagged"
+            flag.reason = "Student missed three or more monthly submissions."
+            if not was_flagged:
+                db.commit()
+                notify(db, student.id, "flagging", "You've been flagged for compliance",
+                       f"You have {missed} missed submission(s) and have been flagged by OSAS.")
+        else:
+            flag.is_flagged = False
+            flag.compliance_status = "Good"
+            flag.reason = None
+        flags_updated += 1
+    db.commit()
+
+    current_month = now.strftime("%B")
+    current_year = now.year
+    month_label = f"{current_month} {current_year}"
+    is_final = now.day >= COMPLIANCE_DEADLINE_DAY - 2
+    reminders_sent = 0
+    for student in students:
+        compliance = db.query(models.StudentCompliance).filter(
+            models.StudentCompliance.student_id == student.id,
+            models.StudentCompliance.month == current_month,
+            models.StudentCompliance.year == current_year).first()
+        if not compliance or compliance.submission_status != "Pending":
+            continue
+        if is_final:
+            sent = email_utils.notify_final_reminder(student.email, student.full_name, month_label)
+            notify(db, student.id, "final_reminder", "Final reminder: submission due soon",
+                   f"Your {month_label} status update is still pending and the deadline is near.")
+        else:
+            sent = email_utils.notify_monthly_reminder(
+                student.email, student.full_name, month_label, COMPLIANCE_DEADLINE_DAY)
+            notify(db, student.id, "monthly_reminder", "Monthly submission reminder",
+                   f"Please submit your {month_label} status update before day {COMPLIANCE_DEADLINE_DAY}.")
+        if sent: reminders_sent += 1
+    db.commit()
+
+    log_action(db, actor, "create", "compliance", None, None,
+               f"Automation sweep: {missed_count} newly missed, {flags_updated} flags recomputed, "
+               f"{reminders_sent} reminder(s) sent")
+
+    return {
+        "message": "Automation sweep completed.",
+        "newly_missed": missed_count,
+        "flags_recomputed": flags_updated,
+        "reminders_sent": reminders_sent,
+    }
+
+
+@app.post("/api/osas/compliance/run-automation")
+def run_automation_now(db: Session = Depends(get_db), user: models.User = Depends(require_osas_admin)):
+    return run_compliance_automation(db, actor=user)
+
+
+# ─── Risk assessment ───────────────────────────────────────────────────────────
+RISK_WEIGHTS = {"missed": 12, "emergency": 15, "concern": 10}
+
+def _risk_level(score: int) -> str:
+    if score >= 70: return "Critical"
+    if score >= 45: return "High"
+    if score >= 20: return "Medium"
+    return "Low"
+
+@app.get("/api/osas/risk-assessment", response_model=List[schemas.RiskAssessmentRow])
+def risk_assessment(db: Session = Depends(get_db), user: models.User = Depends(require_osas_admin)):
+    students = db.query(models.User).filter(models.User.role == "student").all()
+    rows = []
+    for s in students:
+        flag = db.query(models.StudentFlag).filter(models.StudentFlag.student_id == s.id).first()
+        missed = flag.missed_count if flag else 0
+        emergencies = db.query(models.EmergencyCase).filter(models.EmergencyCase.student_id == s.id).count()
+        open_concerns = db.query(models.Concern).filter(
+            models.Concern.student_id == s.id, models.Concern.status != "resolved").count()
+
+        raw_score = (missed * RISK_WEIGHTS["missed"] + emergencies * RISK_WEIGHTS["emergency"]
+                     + open_concerns * RISK_WEIGHTS["concern"])
+        risk_score = min(100, raw_score)
+        compliance_score = max(0, 100 - missed * 20)
+
+        rows.append(schemas.RiskAssessmentRow(
+            student_id=s.id, student_name=s.full_name, email=s.email,
+            course_section=s.course_section, missed_submissions=missed,
+            emergency_count=emergencies, open_concern_count=open_concerns,
+            compliance_score=compliance_score, risk_score=risk_score,
+            risk_level=_risk_level(risk_score),
+        ))
+
+    rows.sort(key=lambda r: r.risk_score, reverse=True)
+    return rows
+
 
 @app.get("/api/")
 def root():

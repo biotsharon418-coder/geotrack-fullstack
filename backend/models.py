@@ -189,6 +189,24 @@ class StudentFlag(Base):
     student = relationship("User")
 
 
+class Notification(Base):
+    """An in-app notification for one recipient (student or osas_admin).
+    category is a short machine key (e.g. 'sos_alert', 'flagging',
+    'monthly_reminder', 'approval', 'rejection', 'announcement',
+    'resolution', 'emergency_alert') that the frontend maps to a label."""
+    __tablename__ = "notifications"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    category = Column(String, nullable=False)
+    title = Column(String, nullable=False)
+    message = Column(Text, nullable=False)
+    is_read = Column(Boolean, default=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    user = relationship("User")
+
+
 class EmergencyCase(Base):
     """An SOS alert a student has triggered. category is one of the fixed
     EMERGENCY_CATEGORIES in main.py. status moves Active -> Responding ->

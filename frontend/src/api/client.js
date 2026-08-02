@@ -100,6 +100,9 @@ export const api = {
   myEmergencies:      ()        => request("/student/sos"),
   emergencyDetail:    id        => request(`/student/sos/${id}`),
   cancelEmergency:    id        => request(`/student/sos/${id}/cancel`,{method:"PATCH"}),
+  myNotifications:          ()  => request("/student/notifications"),
+  markNotificationRead:     id  => request(`/student/notifications/${id}/read`,{method:"PATCH"}),
+  markAllNotificationsRead: ()  => request("/student/notifications/read-all",{method:"PATCH"}),
   },
 
   osas: {
@@ -133,6 +136,15 @@ export const api = {
     emergencyDetail:    id       => request(`/osas/emergencies/${id}`),
     updateEmergencyStatus: (id,p) => request(`/osas/emergencies/${id}/status`,{method:"PATCH",body:p}),
     addEmergencyNote:   (id,note) => request(`/osas/emergencies/${id}/notes`,{method:"POST",body:{note}}),
+    myNotifications:          ()  => request("/osas/notifications"),
+    markNotificationRead:     id  => request(`/osas/notifications/${id}/read`,{method:"PATCH"}),
+    markAllNotificationsRead: ()  => request("/osas/notifications/read-all",{method:"PATCH"}),
+    complianceHistory:  (params={}) => { const q=new URLSearchParams(Object.fromEntries(Object.entries(params).filter(([,v])=>v!=null&&v!==""))); return request(`/osas/compliance/history?${q}`); },
+    runComplianceAutomation:  () => request("/osas/compliance/run-automation",{method:"POST"}),
+    sendComplianceReminders:  () => request("/osas/compliance/send-reminders",{method:"POST"}),
+    checkMissedSubmissions:   () => request("/osas/compliance/check-missed",{method:"POST"}),
+    updateComplianceFlags:    () => request("/osas/compliance/update-flags",{method:"POST"}),
+    riskAssessment:           () => request("/osas/risk-assessment"),
 },
 
 };

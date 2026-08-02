@@ -70,6 +70,13 @@ export default function StudentLayout() {
   </NavLink>
 
   <NavLink
+    to="/student/notifications"
+    className={({ isActive }) => `nav-btn ${isActive ? "active" : ""}`}
+  >
+    <div className="ic"></div>Alerts
+  </NavLink>
+
+  <NavLink
     to="/student/profile"
     className={({ isActive }) => `nav-btn ${isActive ? "active" : ""}`}
   >
