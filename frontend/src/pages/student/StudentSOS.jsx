@@ -7,10 +7,8 @@
 // instead of the trigger form, so a student can't accidentally send a
 // second alert on top of one already in progress.
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { api } from "../../api/client";
-
-const LOCATION_PUSH_INTERVAL_MS = 20000; // how often live GPS is pushed to OSAS while a case is open
 
 const CATEGORIES = ["Medical Emergency", "Safety Threat", "Fire", "Natural Disaster", "Other"];
 
@@ -31,15 +29,7 @@ function StatusPill({ status }) {
   );
 }
 
-function collapseLocationPings(entries) {
-  // Keep only the most recent "Location updated" ping so live GPS sharing
-  // (which pushes every ~20s) doesn't flood the timeline with noise.
-  const lastLocationIdx = entries.map(e => e.event).lastIndexOf("Location updated");
-  return entries.filter((e, i) => e.event !== "Location updated" || i === lastLocationIdx);
-}
-
-function Timeline({ entries: rawEntries }) {
-  const entries = collapseLocationPings(rawEntries);
+function Timeline({ entries }) {
   return (
     <div style={{ marginTop:12 }}>
       {entries.map((e, i) => (
@@ -87,41 +77,6 @@ export default function StudentSOS() {
 
   const activeCase = cases?.find(c => c.status === "Active" || c.status === "Responding");
   const history = (cases || []).filter(c => c.status === "Resolved" || c.status === "Cancelled");
-  const [liveSharing, setLiveSharing] = useState(false);
-  const lastPushRef = useRef(0);
-
-  // Live GPS sharing: while a case is Active/Responding, keep watching the
-  // browser's position and push updates to OSAS (throttled) so responders
-  // always see roughly where the student is right now, not just where they
-  // were when the alert was sent.
-  useEffect(() => {
-    if (!activeCase || !navigator.geolocation) { setLiveSharing(false); return; }
-    setLiveSharing(true);
-    const watchId = navigator.geolocation.watchPosition(
-      (pos) => {
-        const now = Date.now();
-        if (now - lastPushRef.current < LOCATION_PUSH_INTERVAL_MS) return;
-        lastPushRef.current = now;
-        api.student.updateSOSLocation(activeCase.id, {
-          latitude: pos.coords.latitude,
-          longitude: pos.coords.longitude,
-        }).then(() => loadCases()).catch(() => {});
-      },
-      () => setLiveSharing(false),
-      { enableHighAccuracy: true, maximumAge: 10000, timeout: 15000 }
-    );
-    return () => navigator.geolocation.clearWatch(watchId);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeCase?.id]);
-
-  // Response tracking: poll for OSAS status changes / notes on the open
-  // case so the timeline updates live without the student refreshing.
-  useEffect(() => {
-    if (!activeCase) return;
-    const id = setInterval(loadCases, 12000);
-    return () => clearInterval(id);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeCase?.id]);
 
   function requestLocation() {
     if (!navigator.geolocation) { setLocationState("denied"); return; }
@@ -195,16 +150,10 @@ export default function StudentSOS() {
             {activeCase.details && (
               <p style={{ fontSize:12.5, color:"#544f43", marginTop:10 }}>{activeCase.details}</p>
             )}
-            <div style={{ fontSize:11, color:"#a39c8a", marginTop:8, display:"flex", alignItems:"center", gap:6 }}>
+            <div style={{ fontSize:11, color:"#a39c8a", marginTop:8 }}>
               {activeCase.latitude
                 ? `Location shared - ${activeCase.latitude.toFixed(5)}, ${activeCase.longitude.toFixed(5)}`
                 : "No location shared"}
-              {liveSharing && (
-                <span style={{ display:"inline-flex", alignItems:"center", gap:4, color:"#2f5d3f", fontWeight:700 }}>
-                  <span style={{ width:6, height:6, borderRadius:"50%", background:"#2f5d3f", display:"inline-block" }}/>
-                  Live
-                </span>
-              )}
             </div>
             <div style={{ borderTop:"1px solid var(--line)", marginTop:14, paddingTop:12 }}>
               <div className="card-title" style={{ fontSize:12.5 }}>Timeline</div>

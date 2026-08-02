@@ -6,23 +6,8 @@
 // or add a response note. Case Status + Response Tracking + Emergency
 // History all live here.
 
-import { useEffect, useRef, useState, Fragment } from "react";
+import { useEffect, useState, Fragment } from "react";
 import { api } from "../../api/client";
-
-const POLL_INTERVAL_MS = 12000; // near-real-time refresh for new SOS alerts / live location pings
-
-function collapseLocationPings(entries) {
-  const lastLocationIdx = entries.map(e => e.event).lastIndexOf("Location updated");
-  return entries.filter((e, i) => e.event !== "Location updated" || i === lastLocationIdx);
-}
-
-function timeAgo(dateStr) {
-  const secs = Math.max(0, Math.floor((Date.now() - new Date(dateStr).getTime()) / 1000));
-  if (secs < 60) return `${secs}s ago`;
-  const mins = Math.floor(secs / 60);
-  if (mins < 60) return `${mins}m ago`;
-  return `${Math.floor(mins / 60)}h ago`;
-}
 
 const STATUS_FILTERS = ["All", "Active", "Responding", "Resolved", "Cancelled"];
 const STATUS_ACTIONS = ["Active", "Responding", "Resolved", "Cancelled"];
@@ -52,33 +37,16 @@ export default function OsasEmergencies() {
   const [expandedId, setExpandedId] = useState(null);
   const [noteDraft, setNoteDraft] = useState("");
   const [savingId, setSavingId] = useState(null);
-  const [freshIds, setFreshIds] = useState(new Set());
-  const knownIdsRef = useRef(null);
 
-  function load(isPoll = false) {
-    if (!isPoll) setLoading(true);
+  function load() {
+    setLoading(true);
     api.osas.listEmergencies(filter === "All" ? null : filter)
-      .then(list => {
-        if (knownIdsRef.current) {
-          const newlySeen = list.filter(c => c.status === "Active" && !knownIdsRef.current.has(c.id));
-          if (newlySeen.length) {
-            setFreshIds(prev => new Set([...prev, ...newlySeen.map(c => c.id)]));
-          }
-        }
-        knownIdsRef.current = new Set(list.map(c => c.id));
-        setCases(list);
-      })
+      .then(setCases)
       .catch(err => setError(err.message))
       .finally(() => setLoading(false));
   }
 
-  useEffect(() => {
-    knownIdsRef.current = null;
-    load();
-    const id = setInterval(() => load(true), POLL_INTERVAL_MS);
-    return () => clearInterval(id);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filter]);
+  useEffect(() => { load(); /* eslint-disable-next-line */ }, [filter]);
 
   async function handleStatusChange(caseId, status) {
     setSavingId(caseId);
@@ -157,32 +125,20 @@ export default function OsasEmergencies() {
                 <th>Status</th>
                 <th></th>
               </tr>
-              {cases.map(c => {
-                const collapsedTimeline = collapseLocationPings(c.timeline);
-                const lastLocationEntry = [...c.timeline].reverse().find(e => e.event === "Location updated");
-                const isFresh = freshIds.has(c.id);
-                return (
+              {cases.map(c => (
                 <Fragment key={c.id}>
-                  <tr key={c.id} style={isFresh ? { background:"#fbe4dc" } : undefined}>
+                  <tr key={c.id}>
                     <td>
-                      {isFresh && <span className="badge warn" style={{ marginRight:6 }}>New</span>}
                       {c.student_name}
                       <div style={{ fontSize: 11, color: "#a39c8a" }}>{c.student_email}</div>
                     </td>
                     <td>{c.category}</td>
                     <td style={{ fontSize: 11.5 }}>
                       {c.latitude
-                        ? <>
-                            <a href={`https://www.openstreetmap.org/?mlat=${c.latitude}&mlon=${c.longitude}#map=17/${c.latitude}/${c.longitude}`}
-                               target="_blank" rel="noreferrer" style={{ color:"var(--moss)" }}>
-                              {c.latitude.toFixed(5)}, {c.longitude.toFixed(5)}
-                            </a>
-                            {(c.status === "Active" || c.status === "Responding") && lastLocationEntry && (
-                              <div style={{ color:"#2f5d3f", fontWeight:700, marginTop:2 }}>
-                                Live - updated {timeAgo(lastLocationEntry.created_at)}
-                              </div>
-                            )}
-                          </>
+                        ? <a href={`https://www.openstreetmap.org/?mlat=${c.latitude}&mlon=${c.longitude}#map=17/${c.latitude}/${c.longitude}`}
+                             target="_blank" rel="noreferrer" style={{ color:"var(--moss)" }}>
+                            {c.latitude.toFixed(5)}, {c.longitude.toFixed(5)}
+                          </a>
                         : <span style={{ color:"#a39c8a" }}>Not shared</span>}
                     </td>
                     <td style={{ fontSize: 11.5 }}>{new Date(c.created_at).toLocaleString()}</td>
@@ -212,8 +168,8 @@ export default function OsasEmergencies() {
                           </div>
                         )}
                         <div className="panel-title" style={{ fontSize:12.5, marginBottom:8 }}>Timeline</div>
-                        {collapsedTimeline.map((e, i) => (
-                          <div key={e.id} style={{ display:"flex", gap:10, marginBottom: i===collapsedTimeline.length-1?0:8 }}>
+                        {c.timeline.map((e, i) => (
+                          <div key={e.id} style={{ display:"flex", gap:10, marginBottom: i===c.timeline.length-1?0:8 }}>
                             <div style={{
                               width:8, height:8, borderRadius:"50%", marginTop:4, flexShrink:0,
                               background: e.actor_role==="osas_admin" ? "var(--moss)" : "var(--pin)",
@@ -237,8 +193,7 @@ export default function OsasEmergencies() {
                     </tr>
                   )}
                 </Fragment>
-                );
-              })}
+              ))}
             </tbody>
           </table>
         )}

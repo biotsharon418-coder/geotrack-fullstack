@@ -56,6 +56,13 @@ export default function OsasVerification() {
     catch(err) { setError(err.message); }
   }
 
+  async function handleReject(hid) {
+    const reason = window.prompt("Reason for rejecting this boarding house (optional):", "");
+    if (reason === null) return; // cancelled
+    try { await api.osas.rejectBoardingHouse(hid, reason); load(); }
+    catch(err) { setError(err.message); }
+  }
+
   function startEdit(h) {
     setEditingId(h.id);
     setEditForm({ name:h.name, barangay:h.barangay, monthly_rate:h.monthly_rate ?? "", address:"" });
@@ -170,6 +177,8 @@ export default function OsasVerification() {
                         <td><span className={`badge ${h.is_verified?"ok":"pending"}`}>{h.is_verified?"Verified":"Pending"}</span></td>
                         <td style={{whiteSpace:"nowrap"}}>
                           {!h.is_verified && <button className="btn primary" style={{padding:"5px 10px",fontSize:11,marginRight:4}} onClick={() => handleVerify(h.id)}>Verify</button>}
+                          {h.is_verified && <button className="btn" style={{padding:"5px 10px",fontSize:11,marginRight:4,color:"var(--pin)"}} onClick={() => handleReject(h.id)}>Unverify</button>}
+                          {!h.is_verified && <button className="btn" style={{padding:"5px 10px",fontSize:11,marginRight:4,color:"var(--pin)"}} onClick={() => handleReject(h.id)}>Reject</button>}
                           <button className="btn" style={{padding:"5px 10px",fontSize:11,marginRight:4}} onClick={() => toggleReviews(h.id)}>
                             {expandedHouseId===h.id?"Hide reviews":"Reviews"}
                           </button>

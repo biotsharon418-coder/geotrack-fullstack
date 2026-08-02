@@ -13,8 +13,6 @@ import DormDetail       from "./pages/student/DormDetail";
 import StudentConcern   from "./pages/student/StudentConcern";
 import StudentSOS       from "./pages/student/StudentSOS";
 import StudentProfile   from "./pages/student/StudentProfile";
-import StudentNotifications from "./pages/student/StudentNotifications";
-import StudentPrivacy   from "./pages/student/StudentPrivacy";
 import ForgotPassword   from "./pages/student/ForgotPassword";
 import ResetPassword    from "./pages/student/ResetPassword";
 import VerifyOTP        from "./pages/student/VerifyOTP";
@@ -29,14 +27,10 @@ import OsasVerification   from "./pages/osas/OsasVerification";
 import OsasReviews        from "./pages/osas/OsasReviews";
 import OsasConcerns       from "./pages/osas/OsasConcerns";
 import OsasEmergencies    from "./pages/osas/OsasEmergencies";
+import OsasAnnouncements  from "./pages/osas/OsasAnnouncements";
 import OsasReports        from "./pages/osas/OsasReports";
 import OsasAccounts       from "./pages/osas/OsasAccounts";
 import OsasAuditLogs      from "./pages/osas/OsasAuditLogs";
-import OsasCompliance     from "./pages/osas/OsasCompliance";
-import OsasRiskAssessment from "./pages/osas/OsasRiskAssessment";
-import OsasInspections    from "./pages/osas/OsasInspections";
-import OsasPrivacy        from "./pages/osas/OsasPrivacy";
-import OsasNotifications  from "./pages/osas/OsasNotifications";
 
 export default function App() {
   return (
@@ -62,8 +56,6 @@ export default function App() {
             <Route path="directory/:houseId" element={<DormDetail />} />
             <Route path="concern"          element={<StudentConcern />} />
             <Route path="sos"              element={<StudentSOS />} />
-            <Route path="notifications"    element={<StudentNotifications />} />
-            <Route path="privacy"          element={<StudentPrivacy />} />
             <Route path="profile"          element={<StudentProfile />} />
           </Route>
 
@@ -76,16 +68,12 @@ export default function App() {
           }>
             <Route path="dashboard"      element={<OsasDashboard />} />
             <Route path="status-updates" element={<OsasStatusUpdates />} />
-            <Route path="compliance"     element={<OsasCompliance />} />
-            <Route path="risk-assessment" element={<OsasRiskAssessment />} />
             <Route path="verification"   element={<OsasVerification />} />
-            <Route path="inspections"    element={<OsasInspections />} />
             <Route path="reviews"        element={<OsasReviews />} />
             <Route path="concerns"       element={<OsasConcerns />} />
             <Route path="emergencies"    element={<OsasEmergencies />} />
-            <Route path="notifications"  element={<OsasNotifications />} />
+            <Route path="announcements"  element={<OsasAnnouncements />} />
             <Route path="reports"        element={<OsasReports />} />
-            <Route path="privacy"        element={<OsasPrivacy />} />
             <Route path="accounts"       element={<OsasAccounts />} />
             <Route path="audit-logs"     element={<OsasAuditLogs />} />
           </Route>

@@ -5,7 +5,6 @@
 
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
-import NotificationBell from "../../components/NotificationBell";
 import "./student.css";
 
 export default function StudentLayout() {
@@ -66,18 +65,8 @@ export default function StudentLayout() {
   <NavLink
     to="/student/sos"
     className={({ isActive }) => `nav-btn ${isActive ? "active" : ""}`}
-    style={{ color: "var(--pin)", fontWeight: 700 }}
   >
-    <div className="ic" style={{ background: "var(--pin)" }}></div>SOS
-  </NavLink>
-
-  <NotificationBell />
-
-  <NavLink
-    to="/student/privacy"
-    className={({ isActive }) => `nav-btn ${isActive ? "active" : ""}`}
-  >
-    <div className="ic"></div>Privacy
+    <div className="ic"></div>SOS
   </NavLink>
 
   <NavLink

@@ -16,11 +16,11 @@ from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 from sqlalchemy import and_, extract
 from datetime import datetime, timedelta
-from apscheduler.schedulers.background import BackgroundScheduler
 
 import models, schemas
-from database import engine, get_db, Base, SessionLocal
+from database import engine, get_db, Base
 from auth import hash_password, verify_password, create_access_token, require_student, require_osas_admin
+import email_utils
 from models import (
     User,
     BoardingHouse,
@@ -31,9 +31,6 @@ from models import (
     AuditLog,
     StudentCompliance,
     StudentFlag,
-    Notification,
-    Inspection,
-    ConsentRecord,
 )
 
 Base.metadata.create_all(bind=engine)
@@ -52,23 +49,6 @@ ALLOWED_ORIGINS = [o.strip() for o in _origins_env.split(",") if o.strip()] or [
 ]
 app.add_middleware(CORSMiddleware, allow_origins=ALLOWED_ORIGINS,
                    allow_credentials=True, allow_methods=["*"], allow_headers=["*"])
-
-
-@app.on_event("startup")
-def _start_scheduler():
-    if not scheduler.running:
-        scheduler.start()
-        # Also fire once shortly after boot so the automatic behavior is
-        # visible immediately instead of waiting for the next 00:10 UTC run.
-        scheduler.add_job(_scheduled_compliance_sweep, "date",
-                          run_date=datetime.utcnow() + timedelta(seconds=20),
-                          id="compliance_sweep_initial", replace_existing=True)
-
-
-@app.on_event("shutdown")
-def _stop_scheduler():
-    if scheduler.running:
-        scheduler.shutdown(wait=False)
 
 MAX_FAILED = 5
 LOCKOUT_MINS = 5
@@ -138,157 +118,18 @@ def check_monthly_compliance(db: Session):
                 db.add(flag)
 
             flag.missed_count += 1
+            was_flagged = flag.is_flagged
 
             if flag.missed_count >= 3:
                 flag.is_flagged = True
                 flag.compliance_status = "Flagged"
+                if not was_flagged:
+                    db.commit()
+                    email_utils.notify_flagged(student.email, student.full_name, flag.missed_count)
 
     db.commit()
 
 # ─── Helpers ─────────────────────────────────────────────────────────────────
-def notify(db: Session, user_id: int, category: str, title: str, message: str):
-    """Create an in-app notification for a student or OSAS admin."""
-    db.add(models.Notification(user_id=user_id, category=category, title=title, message=message))
-    db.commit()
-
-
-def _notify_osas_admins(db: Session, category: str, title: str, message: str):
-    """Broadcast an in-app notification to every OSAS admin account."""
-    admins = db.query(models.User).filter(models.User.role == "osas_admin").all()
-    for a in admins:
-        db.add(models.Notification(user_id=a.id, category=category, title=title, message=message))
-    db.commit()
-
-
-def _run_compliance_sweep(db: Session) -> dict:
-    """Automatic Student Compliance Monitoring sweep. This is the single
-    source of truth behind both the daily scheduled job and the OSAS
-    "Run automation now" button:
-      - creates this month's compliance record for every active student
-        the first time it's needed and sends the Monthly Reminder
-      - sends a Final Reminder a few days before the deadline if still
-        pending (deduped by checking for an existing notification)
-      - marks overdue Pending records as Missed and sends the missed notice
-      - increments/recomputes each student's missed-submission flag, and
-        auto-notifies the student + OSAS admins the moment someone crosses
-        the flagging threshold
-    Safe to run as often as you like: every step is idempotent.
-    """
-    now = datetime.utcnow()
-    month = now.strftime("%B")
-    year = now.year
-    deadline_date = datetime(year, now.month, COMPLIANCE_DEADLINE_DAY)
-    month_start = datetime(year, now.month, 1)
-
-    students = (db.query(models.User)
-                .filter(models.User.role == "student", models.User.archived_at.is_(None))
-                .all())
-
-    new_monthly_reminders = 0
-    final_reminders_sent = 0
-    newly_missed = 0
-    newly_flagged = 0
-
-    for student in students:
-        compliance = (db.query(models.StudentCompliance)
-                      .filter(models.StudentCompliance.student_id == student.id,
-                              models.StudentCompliance.month == month,
-                              models.StudentCompliance.year == year)
-                      .first())
-
-        if not compliance:
-            compliance = models.StudentCompliance(
-                student_id=student.id, month=month, year=year,
-                submission_status="Pending", deadline=deadline_date,
-                remarks="Waiting for submission",
-            )
-            db.add(compliance)
-            db.flush()
-            notify(db, student.id, "monthly_reminder", "Monthly status update due",
-                   f"Please submit your boarding house status update for {month} {year} "
-                   f"by the {COMPLIANCE_DEADLINE_DAY}th to stay compliant.")
-            new_monthly_reminders += 1
-            continue
-
-        if compliance.submission_status != "Pending":
-            continue
-
-        days_left = (deadline_date - now).days
-
-        if now > deadline_date:
-            compliance.submission_status = "Missed"
-            compliance.remarks = "Submission deadline missed"
-            notify(db, student.id, "final_reminder", "Submission deadline missed",
-                   f"You missed the {month} {year} boarding house status deadline. "
-                   "Please submit as soon as possible to avoid being flagged.")
-            newly_missed += 1
-
-            flag = db.query(models.StudentFlag).filter(models.StudentFlag.student_id == student.id).first()
-            if not flag:
-                flag = models.StudentFlag(student_id=student.id, missed_count=0, compliance_status="Good")
-                db.add(flag)
-                db.flush()
-
-            was_flagged = flag.is_flagged
-            flag.missed_count += 1
-            if flag.missed_count >= 3:
-                flag.is_flagged = True
-                flag.compliance_status = "Flagged"
-                flag.reason = "Three or more missed monthly submissions"
-                if not was_flagged:
-                    newly_flagged += 1
-                    notify(db, student.id, "flagging", "Compliance flag raised",
-                           "You've been flagged by OSAS for missing three or more monthly "
-                           "boarding house status submissions. Please submit your status update "
-                           "as soon as possible.")
-                    _notify_osas_admins(db, "flagging", "Student automatically flagged",
-                                        f"{student.full_name} was auto-flagged after "
-                                        f"{flag.missed_count} missed monthly submissions.")
-
-        elif 0 <= days_left <= 3:
-            already_sent = (db.query(models.Notification)
-                             .filter(models.Notification.user_id == student.id,
-                                     models.Notification.category == "final_reminder",
-                                     models.Notification.created_at >= month_start)
-                             .first())
-            if not already_sent:
-                notify(db, student.id, "final_reminder", "Deadline approaching",
-                       f"Your {month} {year} boarding house status update is due in "
-                       f"{days_left} day(s). Submit now to avoid being marked missed.")
-                final_reminders_sent += 1
-
-    db.commit()
-    return {
-        "monthly_reminders_sent": new_monthly_reminders,
-        "final_reminders_sent": final_reminders_sent,
-        "newly_missed": newly_missed,
-        "newly_flagged": newly_flagged,
-    }
-
-
-def _scheduled_compliance_sweep():
-    """Wrapper the background scheduler calls on its own timer — opens and
-    closes its own DB session since it doesn't run inside a request."""
-    db = SessionLocal()
-    try:
-        result = _run_compliance_sweep(db)
-        log_action(db, None, "update", "compliance", None, None,
-                   f"Automatic sweep — {result['monthly_reminders_sent']} monthly reminders, "
-                   f"{result['final_reminders_sent']} final reminders, "
-                   f"{result['newly_missed']} newly missed, {result['newly_flagged']} newly flagged")
-    except Exception as exc:  # pragma: no cover - defensive logging only
-        db.rollback()
-        print(f"[scheduler] compliance sweep failed: {exc}")
-    finally:
-        db.close()
-
-
-scheduler = BackgroundScheduler(timezone="UTC")
-# Runs once a day; every step inside the sweep is idempotent so more frequent
-# runs (e.g. if the server restarts) never double-send a reminder.
-scheduler.add_job(_scheduled_compliance_sweep, "cron", hour=0, minute=10, id="compliance_sweep")
-
-
 def log_action(db: Session, actor: Optional[models.User], action: str,
                resource_type: str, resource_id: Optional[int] = None,
                resource_label: Optional[str] = None, detail: Optional[str] = None):
@@ -335,6 +176,7 @@ def register_student(payload: schemas.RegisterStudentRequest, db: Session = Depe
         email_otp=otp, email_otp_expires=datetime.utcnow() + timedelta(minutes=15),
     )
     db.add(user); db.commit(); db.refresh(user)
+    email_utils.notify_email_otp(user.email, user.full_name, otp)
 
     if payload.boarding_house_name and payload.boarding_house_barangay:
         house = db.query(models.BoardingHouse).filter(
@@ -343,7 +185,8 @@ def register_student(payload: schemas.RegisterStudentRequest, db: Session = Depe
             house = models.BoardingHouse(
                 name=payload.boarding_house_name, barangay=payload.boarding_house_barangay,
                 latitude=payload.boarding_house_latitude, longitude=payload.boarding_house_longitude,
-                is_verified=False, submitted_by=f"Student — {user.full_name}")
+                is_verified=False, submitted_by=f"Student — {user.full_name}",
+                submitted_by_id=user.id)
             db.add(house); db.commit(); db.refresh(house)
         db.add(models.StatusUpdate(student_id=user.id, boarding_house_id=house.id,
                                    status_type="same", month_label=datetime.utcnow().strftime("%B %Y")))
@@ -398,7 +241,11 @@ def resend_otp(email: str, db: Session = Depends(get_db)):
     otp = make_otp()
     user.email_otp = otp; user.email_otp_expires = datetime.utcnow() + timedelta(minutes=15)
     db.commit()
-    return {"message": "New OTP generated.", "demo_otp": otp}
+    sent = email_utils.notify_email_otp(user.email, user.full_name, otp)
+    resp = {"message": "New OTP sent." if sent else "New OTP generated (email not configured)."}
+    if not sent:
+        resp["demo_otp"] = otp
+    return resp
 
 
 @app.post("/api/auth/register/osas", response_model=schemas.TokenResponse)
@@ -744,26 +591,9 @@ def trigger_sos(payload: schemas.SOSCreate, db: Session = Depends(get_db),
     db.add(case); db.commit(); db.refresh(case)
     _log_timeline(db, case, user, "SOS triggered", payload.details)
     log_action(db, user, "create", "emergency", case.id, payload.category, "SOS triggered")
-    location_note = (f"Location: {payload.latitude:.5f}, {payload.longitude:.5f}"
-                     if payload.latitude is not None else "No location shared")
-    _notify_osas_admins(db, "sos_alert", f"SOS: {payload.category}",
-                        f"{user.full_name} triggered an emergency alert ({payload.category}). {location_note}.")
-    db.refresh(case)
-    return _emergency_out(case)
-
-@app.patch("/api/student/sos/{case_id}/location", response_model=schemas.EmergencyCaseOut)
-def update_sos_location(case_id: int, payload: schemas.SOSLocationUpdate,
-                        db: Session = Depends(get_db), user: models.User = Depends(require_student)):
-    """Live GPS sharing: while a case is Active/Responding, the student's app
-    calls this periodically so OSAS always sees an up-to-date position."""
-    case = db.query(models.EmergencyCase).get(case_id)
-    if not case or case.student_id != user.id: raise HTTPException(404, "Not found")
-    if case.status not in ("Active", "Responding"):
-        raise HTTPException(400, "This case is no longer active")
-    case.latitude = payload.latitude
-    case.longitude = payload.longitude
-    db.commit()
-    _log_timeline(db, case, user, "Location updated")
+    osas_admins = db.query(models.User).filter(models.User.role == "osas_admin").all()
+    for admin in osas_admins:
+        email_utils.notify_emergency_alert(admin.email, payload.category, user.full_name, payload.details)
     db.refresh(case)
     return _emergency_out(case)
 
@@ -979,6 +809,19 @@ def verify_bh(hid: int, db: Session = Depends(get_db), user: models.User = Depen
     if not h: raise HTTPException(404, "Not found")
     h.is_verified = True; db.commit(); db.refresh(h)
     log_action(db, user, "verify", "boarding_house", hid, h.name, "Boarding house verified")
+    if h.submitter:
+        email_utils.notify_boarding_house_approved(h.submitter.email, h.submitter.full_name, h.name)
+    return h
+
+@app.post("/api/osas/boarding-houses/{hid}/reject", response_model=schemas.BoardingHouseOut)
+def reject_bh(hid: int, payload: schemas.BoardingHouseReject, db: Session = Depends(get_db),
+             user: models.User = Depends(require_osas_admin)):
+    h = db.query(models.BoardingHouse).get(hid)
+    if not h: raise HTTPException(404, "Not found")
+    h.is_verified = False; db.commit(); db.refresh(h)
+    log_action(db, user, "reject", "boarding_house", hid, h.name, payload.reason or "Boarding house rejected")
+    if h.submitter:
+        email_utils.notify_boarding_house_rejected(h.submitter.email, h.submitter.full_name, h.name, payload.reason)
     return h
 
 @app.put("/api/osas/boarding-houses/{hid}", response_model=schemas.BoardingHouseOut)
@@ -1020,11 +863,6 @@ def update_concern(cid: int, new_status: str, db: Session = Depends(get_db),
     c.status = new_status; db.commit()
     log_action(db, user, "update", "concern", cid,
                c.student.full_name if c.student else None, f"Status → {new_status}")
-    if c.student:
-        label = {"in_progress": "is now being investigated", "resolved": "has been resolved",
-                  "open": "has been reopened"}.get(new_status, f"status changed to {new_status}")
-        notify(db, c.student_id, "resolution" if new_status == "resolved" else "announcement",
-               "Concern update", f"Your reported concern ({c.category}) {label}.")
     return {"message": "Updated"}
 
 @app.delete("/api/osas/concerns/{cid}")
@@ -1064,9 +902,6 @@ def update_emergency_status(case_id: int, payload: schemas.EmergencyStatusUpdate
     _log_timeline(db, case, user, f"Status: {payload.status}", payload.note)
     log_action(db, user, "update", "emergency", case.id,
               case.student.full_name if case.student else None, f"Status \u2192 {payload.status}")
-    notify(db, case.student_id, "emergency_alert", "Emergency case update",
-           f"Your SOS case ({case.category}) is now: {payload.status}." +
-           (f" Note: {payload.note}" if payload.note else ""))
     db.refresh(case)
     return _emergency_out(case)
 
@@ -1142,6 +977,39 @@ def unarchive_student(sid: int, db: Session = Depends(get_db), user: models.User
     s.archived_at = None; db.commit()
     log_action(db, user, "unarchive", "student", sid, s.full_name, "Student unarchived")
     return {"message": "Unarchived"}
+
+@app.post("/api/osas/announcements")
+def send_announcement(payload: schemas.AnnouncementCreate, db: Session = Depends(get_db),
+                      user: models.User = Depends(require_osas_admin)):
+    if payload.audience not in ("all", "flagged"):
+        raise HTTPException(400, "Invalid audience")
+
+    q = db.query(models.User).filter(models.User.role == "student")
+    if payload.audience == "flagged":
+        flagged_ids = [f.student_id for f in
+                       db.query(models.StudentFlag).filter(models.StudentFlag.is_flagged == True).all()]
+        q = q.filter(models.User.id.in_(flagged_ids))
+    students = q.all()
+
+    sent = 0
+    for s in students:
+        if email_utils.notify_announcement(s.email, s.full_name, payload.subject, payload.message):
+            sent += 1
+
+    log_action(db, user, "create", "announcement", None, payload.subject,
+               f"Sent to {sent}/{len(students)} student(s) ({payload.audience}): {payload.message[:200]}")
+    return {"message": "Announcement sent.", "recipients": len(students), "sent": sent}
+
+@app.get("/api/osas/announcements/history")
+def announcement_history(db: Session = Depends(get_db), user: models.User = Depends(require_osas_admin)):
+    logs = (db.query(models.AuditLog)
+            .filter(models.AuditLog.resource_type == "announcement")
+            .order_by(models.AuditLog.created_at.desc())
+            .limit(50).all())
+    return [{
+        "id": l.id, "subject": l.resource_label, "detail": l.detail,
+        "sent_by": l.actor_name, "created_at": l.created_at,
+    } for l in logs]
 
 @app.delete("/api/osas/students/{sid}")
 def delete_student(sid: int, db: Session = Depends(get_db), user: models.User = Depends(require_osas_admin)):
@@ -1324,30 +1192,16 @@ def compliance_status(
     return flag
 
 
-@app.post("/api/osas/compliance/run-automation")
-def run_compliance_automation_now(
-    db: Session = Depends(get_db),
-    user: models.User = Depends(require_osas_admin)
-):
-    """Manually trigger the same automatic sweep the scheduler runs daily at
-    00:10 UTC — creates missing monthly records + monthly reminders, sends
-    final reminders near the deadline, marks overdue ones Missed, and
-    updates/auto-notifies on new flags. Useful right after deploying or for
-    testing, but nothing needs to click this for the system to work."""
-    result = _run_compliance_sweep(db)
-    log_action(db, user, "update", "compliance", None, None,
-              f"Manual run — {result['monthly_reminders_sent']} monthly reminders, "
-              f"{result['final_reminders_sent']} final reminders, "
-              f"{result['newly_missed']} newly missed, {result['newly_flagged']} newly flagged")
-    return {"message": "Automation sweep completed.", **result}
-
 @app.post("/api/osas/compliance/send-reminders")
 def send_compliance_reminders(
     db: Session = Depends(get_db),
     user: models.User = Depends(require_osas_admin)
 ):
-    current_month = datetime.utcnow().strftime("%B")
-    current_year = datetime.utcnow().year
+    now = datetime.utcnow()
+    current_month = now.strftime("%B")
+    current_year = now.year
+    month_label = f"{current_month} {current_year}"
+    is_final = now.day >= COMPLIANCE_DEADLINE_DAY - 2
 
     students = db.query(models.User).filter(
         models.User.role == "student"
@@ -1367,35 +1221,36 @@ def send_compliance_reminders(
             .first()
         )
 
-        if compliance:
+        if not compliance:
+            compliance = models.StudentCompliance(
+                student_id=student.id,
+                month=current_month,
+                year=current_year,
+                submission_status="Pending",
+                deadline=datetime(current_year, now.month, COMPLIANCE_DEADLINE_DAY),
+            )
+            db.add(compliance)
+            db.commit()
+
+        if compliance.submission_status != "Pending":
             continue
 
-        compliance = models.StudentCompliance(
-            student_id=student.id,
-            month=current_month,
-            year=current_year,
-            submission_status="Pending",
-            deadline=datetime(
-        current_year,
-        datetime.utcnow().month,
-        COMPLIANCE_DEADLINE_DAY
-        )
-        )
-
-        db.add(compliance)
-        db.flush()
-
-        notify(db, student.id, "monthly_reminder", "Monthly status update due",
-               f"Please submit your boarding house status update for {current_month} "
-               f"{current_year} by the {COMPLIANCE_DEADLINE_DAY}th to stay compliant.")
+        if is_final:
+            sent = email_utils.notify_final_reminder(student.email, student.full_name, month_label)
+        else:
+            sent = email_utils.notify_monthly_reminder(
+                student.email, student.full_name, month_label, COMPLIANCE_DEADLINE_DAY)
 
         reminders.append({
             "student": student.full_name,
             "email": student.email,
-            "message": "Reminder generated."
+            "type": "final" if is_final else "monthly",
+            "sent": sent,
         })
 
     db.commit()
+    log_action(db, user, "create", "compliance", None, None,
+               f"Sent {sum(1 for r in reminders if r['sent'])} {'final' if is_final else 'monthly'} reminder(s)")
 
     return {
         "message": "Reminder process completed.",
@@ -1422,10 +1277,6 @@ def check_missed_submissions(
 
             compliance.submission_status = "Missed"
             compliance.remarks = "Submission deadline missed"
-
-            notify(db, compliance.student_id, "final_reminder", "Submission deadline missed",
-                   f"You missed the {compliance.month} {compliance.year} boarding house "
-                   "status deadline. Please submit as soon as possible to avoid being flagged.")
 
             flag = db.query(models.StudentFlag).filter(
                 models.StudentFlag.student_id == compliance.student_id
@@ -1551,8 +1402,6 @@ def update_student_flags(
 
             flag.missed_count = missed
 
-        was_flagged = flag.is_flagged
-
         if missed >= 3:
             flag.is_flagged = True
             flag.compliance_status = "Flagged"
@@ -1561,11 +1410,6 @@ def update_student_flags(
             flag.is_flagged = False
             flag.compliance_status = "Good"
             flag.reason = None
-
-        if flag.is_flagged and not was_flagged:
-            notify(db, student.id, "flagging", "Compliance flag raised",
-                   "You've been flagged by OSAS for missing three or more monthly boarding "
-                   "house status submissions. Please submit your status update as soon as possible.")
 
         flags_updated += 1
 
@@ -1617,203 +1461,6 @@ def compliance_report(
         })
 
     return results
-
-# ─── Notifications (Automated Notification and Reminder Module) ──────────────
-@app.get("/api/student/notifications", response_model=List[schemas.NotificationOut])
-def my_notifications(db: Session = Depends(get_db), user: models.User = Depends(require_student)):
-    return (db.query(models.Notification)
-            .filter(models.Notification.user_id == user.id)
-            .order_by(models.Notification.created_at.desc()).all())
-
-@app.patch("/api/student/notifications/{nid}/read")
-def read_notification(nid: int, db: Session = Depends(get_db), user: models.User = Depends(require_student)):
-    n = db.query(models.Notification).filter(models.Notification.id == nid,
-                                               models.Notification.user_id == user.id).first()
-    if not n: raise HTTPException(404, "Not found")
-    n.is_read = True; db.commit()
-    return {"message": "Marked as read"}
-
-@app.patch("/api/student/notifications/read-all")
-def read_all_notifications(db: Session = Depends(get_db), user: models.User = Depends(require_student)):
-    db.query(models.Notification).filter(models.Notification.user_id == user.id,
-                                          models.Notification.is_read == False).update({"is_read": True})
-    db.commit()
-    return {"message": "All marked as read"}
-
-@app.get("/api/osas/notifications", response_model=List[schemas.NotificationOut])
-def osas_notifications(db: Session = Depends(get_db), user: models.User = Depends(require_osas_admin)):
-    return (db.query(models.Notification)
-            .filter(models.Notification.user_id == user.id)
-            .order_by(models.Notification.created_at.desc()).all())
-
-@app.patch("/api/osas/notifications/{nid}/read")
-def osas_read_notification(nid: int, db: Session = Depends(get_db), user: models.User = Depends(require_osas_admin)):
-    n = db.query(models.Notification).filter(models.Notification.id == nid,
-                                               models.Notification.user_id == user.id).first()
-    if not n: raise HTTPException(404, "Not found")
-    n.is_read = True; db.commit()
-    return {"message": "Marked as read"}
-
-@app.patch("/api/osas/notifications/read-all")
-def osas_read_all_notifications(db: Session = Depends(get_db), user: models.User = Depends(require_osas_admin)):
-    db.query(models.Notification).filter(models.Notification.user_id == user.id,
-                                          models.Notification.is_read == False).update({"is_read": True})
-    db.commit()
-    return {"message": "All marked as read"}
-
-@app.post("/api/osas/announcements")
-def create_announcement(payload: schemas.AnnouncementCreate, db: Session = Depends(get_db),
-                        user: models.User = Depends(require_osas_admin)):
-    students = db.query(models.User).filter(models.User.role == "student").all()
-    for s in students:
-        notify(db, s.id, "announcement", payload.title, payload.message)
-    log_action(db, user, "create", "announcement", None, payload.title,
-              f"Broadcast to {len(students)} students")
-    return {"message": "Announcement sent", "recipients": len(students)}
-
-
-# ─── Boarding House Inspection Management Module ──────────────────────────────
-def _inspection_out(i: models.Inspection) -> schemas.InspectionOut:
-    return schemas.InspectionOut(
-        id=i.id, boarding_house_id=i.boarding_house_id,
-        boarding_house_name=i.boarding_house.name if i.boarding_house else None,
-        inspector_name=i.inspector_name, scheduled_date=i.scheduled_date, status=i.status,
-        checklist=i.checklist, photos=i.photos, remarks=i.remarks, violations=i.violations,
-        safety_rating=i.safety_rating, created_at=i.created_at, completed_at=i.completed_at)
-
-@app.post("/api/osas/inspections", response_model=schemas.InspectionOut)
-def schedule_inspection(payload: schemas.InspectionCreate, db: Session = Depends(get_db),
-                        user: models.User = Depends(require_osas_admin)):
-    h = db.query(models.BoardingHouse).get(payload.boarding_house_id)
-    if not h: raise HTTPException(404, "Boarding house not found")
-    i = models.Inspection(boarding_house_id=payload.boarding_house_id,
-                          inspector_name=payload.inspector_name,
-                          scheduled_date=payload.scheduled_date, status="Scheduled")
-    db.add(i); db.commit(); db.refresh(i)
-    log_action(db, user, "create", "inspection", i.id, h.name, f"Inspection scheduled for {payload.scheduled_date}")
-    return _inspection_out(i)
-
-@app.get("/api/osas/inspections", response_model=List[schemas.InspectionOut])
-def list_inspections(boarding_house_id: Optional[int] = None, status: Optional[str] = None,
-                     db: Session = Depends(get_db), user: models.User = Depends(require_osas_admin)):
-    q = db.query(models.Inspection)
-    if boarding_house_id: q = q.filter(models.Inspection.boarding_house_id == boarding_house_id)
-    if status: q = q.filter(models.Inspection.status == status)
-    return [_inspection_out(i) for i in q.order_by(models.Inspection.scheduled_date.desc()).all()]
-
-@app.get("/api/osas/inspections/{iid}", response_model=schemas.InspectionOut)
-def inspection_detail(iid: int, db: Session = Depends(get_db), user: models.User = Depends(require_osas_admin)):
-    i = db.query(models.Inspection).get(iid)
-    if not i: raise HTTPException(404, "Not found")
-    return _inspection_out(i)
-
-@app.patch("/api/osas/inspections/{iid}/complete", response_model=schemas.InspectionOut)
-def complete_inspection(iid: int, payload: schemas.InspectionComplete, db: Session = Depends(get_db),
-                        user: models.User = Depends(require_osas_admin)):
-    i = db.query(models.Inspection).get(iid)
-    if not i: raise HTTPException(404, "Not found")
-    i.checklist = [c.dict() for c in payload.checklist]
-    i.photos = [p.dict() for p in payload.photos]
-    i.remarks = payload.remarks
-    i.violations = payload.violations
-    i.safety_rating = payload.safety_rating
-    i.status = "Completed"
-    i.completed_at = datetime.utcnow()
-    db.commit(); db.refresh(i)
-    log_action(db, user, "update", "inspection", i.id,
-              i.boarding_house.name if i.boarding_house else None, "Inspection completed")
-    return _inspection_out(i)
-
-@app.patch("/api/osas/inspections/{iid}/cancel")
-def cancel_inspection(iid: int, db: Session = Depends(get_db), user: models.User = Depends(require_osas_admin)):
-    i = db.query(models.Inspection).get(iid)
-    if not i: raise HTTPException(404, "Not found")
-    i.status = "Cancelled"; db.commit()
-    return {"message": "Inspection cancelled"}
-
-@app.delete("/api/osas/inspections/{iid}")
-def delete_inspection(iid: int, db: Session = Depends(get_db), user: models.User = Depends(require_osas_admin)):
-    i = db.query(models.Inspection).get(iid)
-    if not i: raise HTTPException(404, "Not found")
-    db.delete(i); db.commit()
-    return {"message": "Deleted"}
-
-
-# ─── Student Risk Assessment Module ────────────────────────────────────────────
-def _risk_row(db: Session, student: models.User) -> schemas.RiskAssessmentOut:
-    missed = (db.query(models.StudentCompliance)
-              .filter(models.StudentCompliance.student_id == student.id,
-                      models.StudentCompliance.submission_status == "Missed").count())
-    emergencies = (db.query(models.EmergencyCase)
-                   .filter(models.EmergencyCase.student_id == student.id).count())
-    open_concerns = (db.query(models.Concern)
-                      .filter(models.Concern.student_id == student.id,
-                              models.Concern.status != "resolved").count())
-    flag = db.query(models.StudentFlag).filter(models.StudentFlag.student_id == student.id).first()
-    is_flagged = flag.is_flagged if flag else False
-
-    compliance_score = max(0, 100 - missed * 20)
-    risk_score = min(100, missed * 20 + emergencies * 10 + open_concerns * 10 + (25 if is_flagged else 0))
-    if risk_score >= 70: level = "Critical"
-    elif risk_score >= 45: level = "High"
-    elif risk_score >= 20: level = "Medium"
-    else: level = "Low"
-
-    return schemas.RiskAssessmentOut(
-        student_id=student.id, student_name=student.full_name, email=student.email,
-        course_section=student.course_section, compliance_score=compliance_score,
-        missed_submissions=missed, emergency_count=emergencies, open_concern_count=open_concerns,
-        is_flagged=is_flagged, risk_score=risk_score, risk_level=level)
-
-@app.get("/api/osas/risk-assessment", response_model=List[schemas.RiskAssessmentOut])
-def risk_assessment(db: Session = Depends(get_db), user: models.User = Depends(require_osas_admin)):
-    students = db.query(models.User).filter(models.User.role == "student",
-                                              models.User.archived_at.is_(None)).all()
-    rows = [_risk_row(db, s) for s in students]
-    rows.sort(key=lambda r: r.risk_score, reverse=True)
-    return rows
-
-@app.get("/api/osas/risk-assessment/{student_id}", response_model=schemas.RiskAssessmentOut)
-def risk_assessment_detail(student_id: int, db: Session = Depends(get_db),
-                           user: models.User = Depends(require_osas_admin)):
-    student = db.query(models.User).filter(models.User.id == student_id, models.User.role == "student").first()
-    if not student: raise HTTPException(404, "Not found")
-    return _risk_row(db, student)
-
-
-# ─── Data Privacy and Consent Management Module ───────────────────────────────
-@app.get("/api/student/consent", response_model=schemas.ConsentOut)
-def my_consent(db: Session = Depends(get_db), user: models.User = Depends(require_student)):
-    c = db.query(models.ConsentRecord).filter(models.ConsentRecord.user_id == user.id).first()
-    if not c:
-        c = models.ConsentRecord(user_id=user.id)
-        db.add(c); db.commit(); db.refresh(c)
-    return c
-
-@app.post("/api/student/consent", response_model=schemas.ConsentOut)
-def submit_consent(payload: schemas.ConsentSubmit, db: Session = Depends(get_db),
-                   user: models.User = Depends(require_student)):
-    c = db.query(models.ConsentRecord).filter(models.ConsentRecord.user_id == user.id).first()
-    if not c:
-        c = models.ConsentRecord(user_id=user.id)
-        db.add(c)
-    c.data_privacy_agreed = payload.data_privacy_agreed
-    c.location_sharing_agreed = payload.location_sharing_agreed
-    c.agreed_at = datetime.utcnow()
-    db.commit(); db.refresh(c)
-    log_action(db, user, "update", "consent", c.id, user.full_name,
-              f"Data privacy: {payload.data_privacy_agreed}, Location sharing: {payload.location_sharing_agreed}")
-    return c
-
-@app.get("/api/osas/consent-logs", response_model=List[schemas.ConsentAdminOut])
-def consent_logs(db: Session = Depends(get_db), user: models.User = Depends(require_osas_admin)):
-    rows = (db.query(models.ConsentRecord).join(models.User)
-            .filter(models.User.role == "student").all())
-    return [schemas.ConsentAdminOut(
-        data_privacy_agreed=r.data_privacy_agreed, location_sharing_agreed=r.location_sharing_agreed,
-        agreed_at=r.agreed_at, policy_version=r.policy_version,
-        student_id=r.user_id, student_name=r.user.full_name, email=r.user.email) for r in rows]
-
 
 @app.get("/api/")
 def root():

@@ -3,7 +3,6 @@ import { useState } from "react";
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 import { useSessionTimeout } from "../../hooks/useSessionTimeout";
-import NotificationBell from "../../components/NotificationBell";
 import "./osas.css";
 
 export default function OsasLayout() {
@@ -48,15 +47,12 @@ export default function OsasLayout() {
           {[
             ["/osas/dashboard",      "Geo-map overview"],
             ["/osas/status-updates", "Student status monitor"],
-            ["/osas/compliance",     "Compliance monitoring"],
-            ["/osas/risk-assessment","Risk assessment"],
             ["/osas/verification",   "Boarding house verification"],
-            ["/osas/inspections",    "Inspections"],
             ["/osas/reviews",        "Student reviews"],
             ["/osas/concerns",       "Reported concerns"],
             ["/osas/emergencies",    "Emergency / SOS cases"],
+            ["/osas/announcements",  "Announcements"],
             ["/osas/reports",        "Reports"],
-            ["/osas/privacy",        "Privacy & announcements"],
             ["/osas/audit-logs",     "Activity logs"],
             ["/osas/accounts",       "Account management"],
           ].map(([to, label]) => (
@@ -66,7 +62,6 @@ export default function OsasLayout() {
             </NavLink>
           ))}
         </nav>
-        <NotificationBell role="osas" className="osas-nav-item" />
         <div className="osas-sidebar-spacer"></div>
         <button className="osas-logout-btn" onClick={() => handleLogout(true)}>
           Sign out ({fullName})
