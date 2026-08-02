@@ -63,6 +63,14 @@ export default function StudentLayout() {
   </NavLink>
 
   <NavLink
+    to="/student/sos"
+    className={({ isActive }) => `nav-btn ${isActive ? "active" : ""}`}
+    style={{ color: "var(--pin)", fontWeight: 700 }}
+  >
+    <div className="ic" style={{ background: "var(--pin)" }}></div>SOS
+  </NavLink>
+
+  <NavLink
     to="/student/profile"
     className={({ isActive }) => `nav-btn ${isActive ? "active" : ""}`}
   >

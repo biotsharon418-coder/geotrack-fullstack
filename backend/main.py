@@ -14,10 +14,23 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
+from sqlalchemy import and_, extract
+from datetime import datetime, timedelta
 
 import models, schemas
 from database import engine, get_db, Base
 from auth import hash_password, verify_password, create_access_token, require_student, require_osas_admin
+from models import (
+    User,
+    BoardingHouse,
+    StatusUpdate,
+    Review,
+    Concern,
+    PasswordResetToken,
+    AuditLog,
+    StudentCompliance,
+    StudentFlag,
+)
 
 Base.metadata.create_all(bind=engine)
 
@@ -41,6 +54,75 @@ LOCKOUT_MINS = 5
 ARCHIVE_YEARS = 3
 DELETE_YEARS = 5
 
+COMPLIANCE_DEADLINE_DAY = 25
+
+
+def check_monthly_compliance(db: Session):
+
+    now = datetime.utcnow()
+
+    month = now.strftime("%B")
+    year = now.year
+
+    students = (
+        db.query(models.User)
+        .filter(models.User.role == "student")
+        .all()
+    )
+
+    for student in students:
+
+        compliance = (
+            db.query(models.StudentCompliance)
+            .filter(
+                models.StudentCompliance.student_id == student.id,
+                models.StudentCompliance.month == month,
+                models.StudentCompliance.year == year,
+            )
+            .first()
+        )
+
+        if not compliance:
+
+            compliance = models.StudentCompliance(
+                student_id=student.id,
+                month=month,
+                year=year,
+                submission_status="Pending",
+                deadline=datetime(year, now.month, COMPLIANCE_DEADLINE_DAY),
+                remarks="Waiting for submission",
+            )
+
+            db.add(compliance)
+
+        if (
+            compliance.submission_status == "Pending"
+            and now.day > COMPLIANCE_DEADLINE_DAY
+        ):
+            compliance.submission_status = "Missed"
+            compliance.remarks = "Submission deadline missed"
+
+            flag = (
+                db.query(models.StudentFlag)
+                .filter(models.StudentFlag.student_id == student.id)
+                .first()
+            )
+
+            if not flag:
+                flag = models.StudentFlag(
+                    student_id=student.id,
+                    missed_count=0,
+                    compliance_status="Good",
+                )
+                db.add(flag)
+
+            flag.missed_count += 1
+
+            if flag.missed_count >= 3:
+                flag.is_flagged = True
+                flag.compliance_status = "Flagged"
+
+    db.commit()
 
 # ─── Helpers ─────────────────────────────────────────────────────────────────
 def log_action(db: Session, actor: Optional[models.User], action: str,
@@ -101,6 +183,26 @@ def register_student(payload: schemas.RegisterStudentRequest, db: Session = Depe
             db.add(house); db.commit(); db.refresh(house)
         db.add(models.StatusUpdate(student_id=user.id, boarding_house_id=house.id,
                                    status_type="same", month_label=datetime.utcnow().strftime("%B %Y")))
+        db.commit()
+
+        current = datetime.utcnow()
+
+        db.add(
+            models.StudentCompliance(
+                student_id=user.id,
+                month=current.strftime("%B"),
+                year=current.year,
+                submission_status="Submitted",
+                submitted_at=current,
+                deadline=datetime(
+                    current.year,
+                    current.month,
+                    COMPLIANCE_DEADLINE_DAY
+                ),
+                remarks="Initial registration"
+            )
+        )
+
         db.commit()
 
     log_action(db, user, "create", "user", user.id, user.full_name, "Student registered")
@@ -326,37 +428,79 @@ def submit_status(
     user: models.User = Depends(require_student)
 ):
     if payload.status_type == "transferred" and not payload.new_boarding_house_name:
-        raise HTTPException(400, "new_boarding_house_name required when transferred")
+        raise HTTPException(
+            status_code=400,
+            detail="new_boarding_house_name required when transferred"
+        )
 
-    # Automatically use the current month
-    current_month = datetime.now().strftime("%B %Y")
+    current_month = datetime.utcnow().strftime("%B")
+    current_year = datetime.utcnow().year
 
-    u = models.StatusUpdate(
+    existing = (
+        db.query(models.StudentCompliance)
+        .filter(
+            models.StudentCompliance.student_id == user.id,
+            models.StudentCompliance.month == current_month,
+            models.StudentCompliance.year == current_year,
+        )
+        .first()
+    )
+
+    if existing:
+
+        if existing.submission_status == "Submitted":
+            raise HTTPException(
+                status_code=400,
+                detail="You have already submitted your boarding status for this month."
+            )
+
+        existing.submission_status = "Submitted"
+        existing.submitted_at = datetime.utcnow()
+        existing.remarks = "Submitted on time"
+
+    else:
+
+        existing = models.StudentCompliance(
+            student_id=user.id,
+            month=current_month,
+            year=current_year,
+            submission_status="Submitted",
+            submitted_at=datetime.utcnow(),
+            deadline=datetime(
+                current_year,
+                datetime.utcnow().month,
+                COMPLIANCE_DEADLINE_DAY,
+            ),
+            remarks="Submitted on time",
+        )
+
+        db.add(existing)
+
+    update = models.StatusUpdate(
         student_id=user.id,
         boarding_house_id=payload.boarding_house_id,
         status_type=payload.status_type,
         new_boarding_house_name=payload.new_boarding_house_name,
         new_barangay=payload.new_barangay,
         note=payload.note,
-        month_label=current_month
+        month_label=f"{current_month} {current_year}",
     )
 
-    db.add(u)
+    db.add(update)
     db.commit()
-    db.refresh(u)
+    db.refresh(update)
 
     log_action(
         db,
         user,
         "create",
         "status_update",
-        u.id,
-        current_month,
-        f"Status: {payload.status_type}" +
-        (f" → {payload.new_boarding_house_name}" if payload.new_boarding_house_name else "")
+        update.id,
+        update.month_label,
+        f"Status: {payload.status_type}"
     )
 
-    return u
+    return update
 
 @app.get("/api/student/status-updates", response_model=List[schemas.StatusUpdateOut])
 def my_status_updates(db: Session = Depends(get_db), user: models.User = Depends(require_student)):
@@ -366,7 +510,7 @@ def my_status_updates(db: Session = Depends(get_db), user: models.User = Depends
 @app.put("/api/student/status-updates/{uid}", response_model=schemas.StatusUpdateOut)
 def edit_status(uid: int, payload: schemas.StatusUpdateEdit, db: Session = Depends(get_db),
                 user: models.User = Depends(require_student)):
-    u = db.query(models.StatusUpdate).get(uid)
+    u = db.get(models.StatusUpdate, uid)
     if not u: raise HTTPException(404, "Not found")
     if u.student_id != user.id: raise HTTPException(403, "Not yours")
     for f, v in payload.dict(exclude_unset=True).items(): setattr(u, f, v)
@@ -401,10 +545,75 @@ def my_boarding_house(db: Session = Depends(get_db), user: models.User = Depends
 
 
 # ─── OSAS endpoints ───────────────────────────────────────────────────────────
+
+EMERGENCY_CATEGORIES = ["Medical Emergency", "Safety Threat", "Fire", "Natural Disaster", "Other"]
+
+def _log_timeline(db, case, actor, event, note=None):
+    db.add(models.EmergencyTimelineEntry(
+        case_id=case.id,
+        actor_name=actor.full_name if actor else "System",
+        actor_role=actor.role if actor else "system",
+        event=event, note=note,
+    ))
+    db.commit()
+
+def _emergency_out(case):
+    return schemas.EmergencyCaseOut(
+        id=case.id, student_id=case.student_id,
+        student_name=case.student.full_name if case.student else None,
+        student_email=case.student.email if case.student else None,
+        category=case.category, details=case.details,
+        latitude=case.latitude, longitude=case.longitude,
+        status=case.status, created_at=case.created_at, resolved_at=case.resolved_at,
+        timeline=list(case.timeline),
+    )
+
+@app.post("/api/student/sos", response_model=schemas.EmergencyCaseOut)
+def trigger_sos(payload: schemas.SOSCreate, db: Session = Depends(get_db),
+                user: models.User = Depends(require_student)):
+    if payload.category not in EMERGENCY_CATEGORIES:
+        raise HTTPException(400, "Invalid emergency category")
+    case = models.EmergencyCase(
+        student_id=user.id, category=payload.category, details=payload.details,
+        latitude=payload.latitude, longitude=payload.longitude, status="Active",
+    )
+    db.add(case); db.commit(); db.refresh(case)
+    _log_timeline(db, case, user, "SOS triggered", payload.details)
+    log_action(db, user, "create", "emergency", case.id, payload.category, "SOS triggered")
+    db.refresh(case)
+    return _emergency_out(case)
+
+@app.get("/api/student/sos", response_model=List[schemas.EmergencyCaseOut])
+def my_emergencies(db: Session = Depends(get_db), user: models.User = Depends(require_student)):
+    cases = (db.query(models.EmergencyCase)
+             .filter(models.EmergencyCase.student_id == user.id)
+             .order_by(models.EmergencyCase.created_at.desc()).all())
+    return [_emergency_out(c) for c in cases]
+
+@app.get("/api/student/sos/{case_id}", response_model=schemas.EmergencyCaseOut)
+def my_emergency_detail(case_id: int, db: Session = Depends(get_db),
+                        user: models.User = Depends(require_student)):
+    case = db.query(models.EmergencyCase).get(case_id)
+    if not case or case.student_id != user.id: raise HTTPException(404, "Not found")
+    return _emergency_out(case)
+
+@app.patch("/api/student/sos/{case_id}/cancel", response_model=schemas.EmergencyCaseOut)
+def cancel_my_emergency(case_id: int, db: Session = Depends(get_db),
+                        user: models.User = Depends(require_student)):
+    case = db.query(models.EmergencyCase).get(case_id)
+    if not case or case.student_id != user.id: raise HTTPException(404, "Not found")
+    if case.status in ("Resolved", "Cancelled"): raise HTTPException(400, "Case already closed")
+    case.status = "Cancelled"; case.resolved_at = datetime.utcnow(); db.commit()
+    _log_timeline(db, case, user, "Cancelled by student")
+    log_action(db, user, "update", "emergency", case.id, case.category, "Cancelled by student")
+    db.refresh(case)
+    return _emergency_out(case)
+
 @app.get("/api/osas/dashboard", response_model=schemas.DashboardStats)
 def dashboard(db: Session = Depends(get_db), user: models.User = Depends(require_osas_admin)):
     students = db.query(models.User).filter(models.User.role == "student").all()
     updates  = db.query(models.StatusUpdate).all()
+    check_monthly_compliance(db)
 
     # Charts data
     gender_counts: dict = {}
@@ -436,12 +645,72 @@ def dashboard(db: Session = Depends(get_db), user: models.User = Depends(require
         updates_submitted=len(updates),
         flagged_students=db.query(models.StatusUpdate).filter(models.StatusUpdate.is_flagged==True).count(),
         pending_verifications=db.query(models.BoardingHouse).filter(models.BoardingHouse.is_verified==False).count(),
+        active_emergencies=db.query(models.EmergencyCase).filter(models.EmergencyCase.status.in_(["Active","Responding"])).count(),
         by_gender=[{"label":k,"count":v} for k,v in sorted(gender_counts.items())],
         by_department=[{"label":k,"count":v} for k,v in sorted(dept_counts.items())],
         by_barangay=[{"label":k,"count":v} for k,v in sorted(bar_counts.items())],
         by_status=[{"label":k,"count":v} for k,v in sorted(status_counts.items())],
         recent_activities=activities,
     )
+
+@app.get("/api/osas/compliance/dashboard")
+def compliance_dashboard(
+    db: Session = Depends(get_db),
+    user: models.User = Depends(require_osas_admin)
+):
+    now = datetime.utcnow()
+
+    total_students = db.query(models.User).filter(
+        models.User.role == "student"
+    ).count()
+
+    submitted = db.query(models.StudentCompliance).filter(
+        models.StudentCompliance.month == now.strftime("%B"),
+        models.StudentCompliance.year == now.year,
+        models.StudentCompliance.submission_status == "Submitted"
+    ).count()
+
+    pending = db.query(models.StudentCompliance).filter(
+        models.StudentCompliance.month == now.strftime("%B"),
+        models.StudentCompliance.year == now.year,
+        models.StudentCompliance.submission_status == "Pending"
+    ).count()
+
+    missed = db.query(models.StudentCompliance).filter(
+        models.StudentCompliance.month == now.strftime("%B"),
+        models.StudentCompliance.year == now.year,
+        models.StudentCompliance.submission_status == "Missed"
+    ).count()
+
+    flagged = db.query(models.StudentFlag).filter(
+        models.StudentFlag.is_flagged == True
+    ).count()
+
+    recent = (
+        db.query(models.StudentCompliance)
+        .order_by(models.StudentCompliance.id.desc())
+        .limit(10)
+        .all()
+    )
+
+    return {
+        "total_students": total_students,
+        "submitted": submitted,
+        "pending": pending,
+        "missed": missed,
+        "flagged": flagged,
+        "recent": [
+            {
+                "student_id": r.student_id,
+                "student_name": r.student.full_name,
+                "month": r.month,
+                "year": r.year,
+                "status": r.submission_status,
+                "submitted_at": r.submitted_at,
+            }
+            for r in recent
+        ]
+    }
 
 @app.get("/api/osas/geo-map", response_model=List[schemas.StudentMapPoint])
 def geo_map(db: Session = Depends(get_db), user: models.User = Depends(require_osas_admin)):
@@ -489,13 +758,31 @@ def all_status_updates(
     return results
 
 @app.patch("/api/osas/status-updates/{uid}/flag")
-def flag_update(uid: int, reason: str, db: Session = Depends(get_db),
-                user: models.User = Depends(require_osas_admin)):
-    u = db.query(models.StatusUpdate).get(uid)
-    if not u: raise HTTPException(404, "Not found")
-    u.is_flagged = True; u.flag_reason = reason; db.commit()
-    log_action(db, user, "flag", "status_update", uid,
-               u.student.full_name if u.student else None, f"Reason: {reason}")
+def flag_update(
+    uid: int,
+    reason: str,
+    db: Session = Depends(get_db),
+    user: models.User = Depends(require_osas_admin),
+):
+    u = db.get(models.StatusUpdate, uid)
+
+    if not u:
+        raise HTTPException(404, "Not found")
+
+    u.is_flagged = True
+    u.flag_reason = reason
+    db.commit()
+
+    log_action(
+        db,
+        user,
+        "flag",
+        "status_update",
+        uid,
+        u.student.full_name if u.student else None,
+        f"Reason: {reason}",
+    )
+
     return {"message": "Flagged"}
 
 @app.get("/api/osas/boarding-houses", response_model=List[schemas.BoardingHouseOut])
@@ -561,6 +848,48 @@ def delete_concern(cid: int, db: Session = Depends(get_db), user: models.User = 
     return {"message": "Deleted"}
 
 @app.get("/api/osas/accounts", response_model=List[schemas.OsasAccountOut])
+@app.get("/api/osas/emergencies", response_model=List[schemas.EmergencyCaseOut])
+def list_emergencies(status: Optional[str] = None, db: Session = Depends(get_db),
+                     user: models.User = Depends(require_osas_admin)):
+    q = db.query(models.EmergencyCase)
+    if status: q = q.filter(models.EmergencyCase.status == status)
+    cases = q.order_by(models.EmergencyCase.created_at.desc()).all()
+    return [_emergency_out(c) for c in cases]
+
+@app.get("/api/osas/emergencies/{case_id}", response_model=schemas.EmergencyCaseOut)
+def emergency_detail(case_id: int, db: Session = Depends(get_db),
+                     user: models.User = Depends(require_osas_admin)):
+    case = db.query(models.EmergencyCase).get(case_id)
+    if not case: raise HTTPException(404, "Not found")
+    return _emergency_out(case)
+
+@app.patch("/api/osas/emergencies/{case_id}/status", response_model=schemas.EmergencyCaseOut)
+def update_emergency_status(case_id: int, payload: schemas.EmergencyStatusUpdate,
+                            db: Session = Depends(get_db), user: models.User = Depends(require_osas_admin)):
+    if payload.status not in ("Active","Responding","Resolved","Cancelled"):
+        raise HTTPException(400, "Invalid status")
+    case = db.query(models.EmergencyCase).get(case_id)
+    if not case: raise HTTPException(404, "Not found")
+    case.status = payload.status
+    if payload.status in ("Resolved","Cancelled"): case.resolved_at = datetime.utcnow()
+    db.commit()
+    _log_timeline(db, case, user, f"Status: {payload.status}", payload.note)
+    log_action(db, user, "update", "emergency", case.id,
+              case.student.full_name if case.student else None, f"Status \u2192 {payload.status}")
+    db.refresh(case)
+    return _emergency_out(case)
+
+@app.post("/api/osas/emergencies/{case_id}/notes", response_model=schemas.EmergencyCaseOut)
+def add_emergency_note(case_id: int, payload: schemas.EmergencyNoteCreate,
+                       db: Session = Depends(get_db), user: models.User = Depends(require_osas_admin)):
+    case = db.query(models.EmergencyCase).get(case_id)
+    if not case: raise HTTPException(404, "Not found")
+    _log_timeline(db, case, user, "Note added", payload.note)
+    log_action(db, user, "update", "emergency", case.id,
+              case.student.full_name if case.student else None, "Note added")
+    db.refresh(case)
+    return _emergency_out(case)
+
 def list_osas_accounts(db: Session = Depends(get_db), user: models.User = Depends(require_osas_admin)):
     return db.query(models.User).filter(models.User.role == "osas_admin").all()
 
@@ -761,6 +1090,308 @@ def export_pdf(group_by: str, month_label: Optional[str] = None,
     return StreamingResponse(buf, media_type="application/pdf",
         headers={"Content-Disposition":"attachment; filename=geotrack_report.pdf"})
 
+@app.get(
+    "/api/student/compliance",
+    response_model=List[schemas.StudentComplianceOut]
+)
+def student_compliance(
+    db: Session = Depends(get_db),
+    user: models.User = Depends(require_student)
+):
+    return (
+        db.query(models.StudentCompliance)
+        .filter(models.StudentCompliance.student_id == user.id)
+        .order_by(
+            models.StudentCompliance.year.desc(),
+            models.StudentCompliance.id.desc()
+        )
+        .all()
+    )
+@app.get(
+    "/api/student/compliance/status",
+    response_model=schemas.StudentFlagOut
+)
+def compliance_status(
+    db: Session = Depends(get_db),
+    user: models.User = Depends(require_student)
+):
+    flag = (
+        db.query(models.StudentFlag)
+        .filter(models.StudentFlag.student_id == user.id)
+        .first()
+    )
+
+    if not flag:
+        flag = models.StudentFlag(
+            student_id=user.id
+        )
+        db.add(flag)
+        db.commit()
+        db.refresh(flag)
+
+    return flag
+
+
+@app.post("/api/osas/compliance/send-reminders")
+def send_compliance_reminders(
+    db: Session = Depends(get_db),
+    user: models.User = Depends(require_osas_admin)
+):
+    current_month = datetime.utcnow().strftime("%B")
+    current_year = datetime.utcnow().year
+
+    students = db.query(models.User).filter(
+        models.User.role == "student"
+    ).all()
+
+    reminders = []
+
+    for student in students:
+
+        compliance = (
+            db.query(models.StudentCompliance)
+            .filter(
+                models.StudentCompliance.student_id == student.id,
+                models.StudentCompliance.month == current_month,
+                models.StudentCompliance.year == current_year,
+            )
+            .first()
+        )
+
+        if compliance:
+            continue
+
+        compliance = models.StudentCompliance(
+            student_id=student.id,
+            month=current_month,
+            year=current_year,
+            submission_status="Pending",
+            deadline=datetime(
+        current_year,
+        datetime.utcnow().month,
+        COMPLIANCE_DEADLINE_DAY
+        )
+        )
+
+        db.add(compliance)
+
+        reminders.append({
+            "student": student.full_name,
+            "email": student.email,
+            "message": "Reminder generated."
+        })
+
+    db.commit()
+
+    return {
+        "message": "Reminder process completed.",
+        "total_reminders": len(reminders),
+        "students": reminders
+    }
+
+@app.post("/api/osas/compliance/check-missed")
+def check_missed_submissions(
+    db: Session = Depends(get_db),
+    user: models.User = Depends(require_osas_admin)
+):
+    now = datetime.utcnow()
+
+    compliances = db.query(models.StudentCompliance).filter(
+        models.StudentCompliance.submission_status == "Pending"
+    ).all()
+
+    missed_count = 0
+
+    for compliance in compliances:
+
+        if compliance.deadline and now > compliance.deadline:
+
+            compliance.submission_status = "Missed"
+            compliance.remarks = "Submission deadline missed"
+
+            flag = db.query(models.StudentFlag).filter(
+                models.StudentFlag.student_id == compliance.student_id
+            ).first()
+
+            if not flag:
+
+                flag = models.StudentFlag(
+                    student_id=compliance.student_id,
+                    missed_count=1,
+                    is_flagged=False
+                )
+
+                db.add(flag)
+
+            else:
+
+                 flag.missed_count += 1
+
+            if flag.missed_count >= 3:
+                flag.is_flagged = True
+                flag.compliance_status = "Flagged"
+                flag.reason = "Three consecutive missed submissions"
+
+            missed_count += 1
+
+    db.commit()
+
+    return {
+        "message": "Missed submission checking completed.",
+        "updated_records": missed_count
+    }
+
+@app.get("/api/osas/compliance/history")
+def compliance_history(
+    student_id: Optional[int] = None,
+    month: Optional[str] = None,
+    year: Optional[int] = None,
+    db: Session = Depends(get_db),
+    user: models.User = Depends(require_osas_admin)
+):
+    query = (
+        db.query(models.StudentCompliance)
+        .join(models.User)
+        .filter(models.User.role == "student")
+    )
+
+    if student_id:
+        query = query.filter(models.StudentCompliance.student_id == student_id)
+
+    if month:
+        query = query.filter(models.StudentCompliance.month == month)
+
+    if year:
+        query = query.filter(models.StudentCompliance.year == year)
+
+    records = query.order_by(
+        models.StudentCompliance.year.desc(),
+        models.StudentCompliance.id.desc()
+    ).all()
+
+    results = []
+
+    for record in records:
+
+        flag = (
+            db.query(models.StudentFlag)
+            .filter(models.StudentFlag.student_id == record.student_id)
+            .first()
+        )
+
+        results.append({
+            "student_id": record.student_id,
+            "student_name": record.student.full_name,
+            "email": record.student.email,
+            "course_section": record.student.course_section,
+            "month": record.month,
+            "year": record.year,
+            "submission_status": record.submission_status,
+            "submitted_at": record.submitted_at,
+            "deadline": record.deadline,
+            "remarks": record.remarks,
+            "is_flagged": flag.is_flagged if flag else False,
+            "missed_submissions": flag.missed_count if flag else 0
+        })
+
+    return results
+
+@app.post("/api/osas/compliance/update-flags")
+def update_student_flags(
+    db: Session = Depends(get_db),
+    user: models.User = Depends(require_osas_admin)
+):
+    flags_updated = 0
+
+    students = db.query(models.User).filter(
+        models.User.role == "student"
+    ).all()
+
+    for student in students:
+
+        missed = db.query(models.StudentCompliance).filter(
+            models.StudentCompliance.student_id == student.id,
+            models.StudentCompliance.submission_status == "Missed"
+        ).count()
+
+        flag = db.query(models.StudentFlag).filter(
+            models.StudentFlag.student_id == student.id
+        ).first()
+
+        if not flag:
+
+            flag = models.StudentFlag(
+                student_id=student.id,
+                missed_count=missed,
+                is_flagged=False,
+                reason=None
+            )
+
+            db.add(flag)
+
+        else:
+
+            flag.missed_count = missed
+
+        if missed >= 3:
+            flag.is_flagged = True
+            flag.compliance_status = "Flagged"
+            flag.reason = "Student missed three or more monthly submissions."
+        else:
+            flag.is_flagged = False
+            flag.compliance_status = "Good"
+            flag.reason = None
+
+        flags_updated += 1
+
+    db.commit()
+
+    return {
+        "message": "Student flags updated successfully.",
+        "students_checked": flags_updated
+    }
+
+@app.get("/api/osas/compliance/report")
+def compliance_report(
+    month: Optional[str] = None,
+    year: Optional[int] = None,
+    db: Session = Depends(get_db),
+    user: models.User = Depends(require_osas_admin)
+):
+    now = datetime.utcnow()
+
+    month = month or now.strftime("%B")
+    year = year or now.year
+
+    compliances = db.query(models.StudentCompliance).filter(
+        models.StudentCompliance.month == month,
+        models.StudentCompliance.year == year
+    ).all()
+
+    results = []
+
+    for compliance in compliances:
+
+        student = compliance.student
+
+        flag = db.query(models.StudentFlag).filter(
+            models.StudentFlag.student_id == student.id
+        ).first()
+
+        results.append({
+            "student_name": student.full_name,
+            "email": student.email,
+            "course_section": student.course_section,
+            "month": compliance.month,
+            "year": compliance.year,
+            "status": compliance.submission_status,
+            "submitted_at": compliance.submitted_at,
+            "deadline": compliance.deadline,
+            "remarks": compliance.remarks,
+            "flagged": flag.is_flagged if flag else False
+        })
+
+    return results
 
 @app.get("/api/")
 def root():

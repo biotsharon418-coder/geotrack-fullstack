@@ -93,7 +93,13 @@ export const api = {
     updateStatusUpdate: (uid,p)   => request(`/student/status-updates/${uid}`,{method:"PUT",body:p}),
     deleteStatusUpdate: uid       => request(`/student/status-updates/${uid}`,{method:"DELETE"}),
     reportConcern:      p         => request("/student/concerns",{method:"POST",body:p}),
-    myBoardingHouse:    ()        => request("/student/my-boarding-house"),
+  myBoardingHouse:    ()        => request("/student/my-boarding-house"),
+  getComplianceHistory: () => request("/student/compliance"),
+  getComplianceStatus: () => request("/student/compliance/status"),
+  triggerSOS:         p         => request("/student/sos",{method:"POST",body:p}),
+  myEmergencies:      ()        => request("/student/sos"),
+  emergencyDetail:    id        => request(`/student/sos/${id}`),
+  cancelEmergency:    id        => request(`/student/sos/${id}/cancel`,{method:"PATCH"}),
   },
 
   osas: {
@@ -118,7 +124,13 @@ export const api = {
     deleteStudent:      sid          => request(`/osas/students/${sid}`,{method:"DELETE"}),
     auditLogs:          (params={})  => { const q=new URLSearchParams(Object.fromEntries(Object.entries(params).filter(([,v])=>v!=null&&v!==""))); return request(`/osas/audit-logs?${q}`); },
     generateTallyReport:(groups,m)   => { const p=new URLSearchParams({group_by:groups.join(",")}); if(m)p.append("month_label",m); return request(`/osas/reports/tally?${p}`); },
-   exportURL: (fmt, groups, m) => {
+   complianceDashboard: () =>
+    request("/osas/compliance/dashboard"),
+    listEmergencies:    (status) => request(`/osas/emergencies${status?`?status=${encodeURIComponent(status)}`:""}`),
+    emergencyDetail:    id       => request(`/osas/emergencies/${id}`),
+    updateEmergencyStatus: (id,p) => request(`/osas/emergencies/${id}/status`,{method:"PATCH",body:p}),
+    addEmergencyNote:   (id,note) => request(`/osas/emergencies/${id}/notes`,{method:"POST",body:{note}}),
+    exportURL: (fmt, groups, m) => {
   const p = new URLSearchParams({
     group_by: groups.join(",")
   });
@@ -127,4 +139,7 @@ export const api = {
 
   return `${API_BASE_URL}/osas/reports/export/${fmt}?${p}`;
 },
-}};
+
+},
+
+};

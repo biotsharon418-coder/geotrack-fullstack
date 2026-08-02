@@ -133,3 +133,104 @@ class AuditLog(Base):
     resource_label = Column(String, nullable=True)   # human-readable label, e.g. dorm name
     detail = Column(Text, nullable=True)             # optional extra context
     created_at = Column(DateTime, default=datetime.utcnow)
+
+class StudentCompliance(Base):
+    __tablename__ = "student_compliance"
+
+    id = Column(Integer, primary_key=True, index=True)
+
+    student_id = Column(
+        Integer,
+        ForeignKey("users.id"),
+        nullable=False
+    )
+
+    month = Column(String, nullable=False)
+
+    year = Column(Integer, nullable=False)
+
+    submission_status = Column(String, default="Pending")
+
+    submitted_at = Column(DateTime)
+
+    deadline = Column(DateTime, nullable=False)
+
+    remarks = Column(String)
+
+    student = relationship(
+        "User",
+        backref="compliance_records"
+    )
+
+
+class StudentFlag(Base):
+    __tablename__ = "student_flags"
+
+    id = Column(Integer, primary_key=True, index=True)
+
+    student_id = Column(Integer, ForeignKey("users.id"), unique=True)
+
+    missed_count = Column(Integer, default=0)
+
+    compliance_status = Column(String, default="Good")
+
+    is_flagged = Column(Boolean, default=False)
+
+    reason = Column(String, nullable=True)
+
+    updated_at = Column(
+        DateTime,
+        default=datetime.utcnow,
+        onupdate=datetime.utcnow
+    )
+
+    student = relationship("User")
+
+
+class EmergencyCase(Base):
+    """An SOS alert a student has triggered. category is one of the fixed
+    EMERGENCY_CATEGORIES in main.py. status moves Active -> Responding ->
+    Resolved (or Cancelled if the student calls it off themselves)."""
+    __tablename__ = "emergency_cases"
+
+    id = Column(Integer, primary_key=True, index=True)
+    student_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+
+    category = Column(String, nullable=False)
+    details = Column(Text, nullable=True)
+
+    latitude = Column(Float, nullable=True)
+    longitude = Column(Float, nullable=True)
+
+    status = Column(String, default="Active")  # Active | Responding | Resolved | Cancelled
+
+    created_at = Column(DateTime, default=datetime.utcnow)
+    resolved_at = Column(DateTime, nullable=True)
+
+    student = relationship("User")
+    timeline = relationship(
+        "EmergencyTimelineEntry",
+        back_populates="case",
+        cascade="all, delete-orphan",
+        order_by="EmergencyTimelineEntry.created_at",
+    )
+
+
+class EmergencyTimelineEntry(Base):
+    """One entry in an emergency case's timeline: the initial SOS trigger,
+    every OSAS status change, and every response note, in order. This is
+    what powers both the "Emergency Timeline" and "Response Tracking"
+    features."""
+    __tablename__ = "emergency_timeline"
+
+    id = Column(Integer, primary_key=True, index=True)
+    case_id = Column(Integer, ForeignKey("emergency_cases.id"), nullable=False)
+
+    actor_name = Column(String, nullable=False)
+    actor_role = Column(String, nullable=False)  # student | osas_admin | system
+    event = Column(String, nullable=False)        # short label, e.g. "SOS triggered", "Status: Responding"
+    note = Column(Text, nullable=True)
+
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    case = relationship("EmergencyCase", back_populates="timeline")

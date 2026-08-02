@@ -58,6 +58,12 @@ export default function StudentHome() {
             <button className="btn" onClick={() => navigate("/student/concern")}>Report concern</button>
             <button className="btn" onClick={() => navigate("/student/profile")}>My profile</button>
           </div>
+          <div className="pill-row" style={{ marginTop:8 }}>
+            <button className="btn" style={{ width:"100%", borderColor:"var(--pin)", color:"var(--pin)", fontWeight:700 }}
+              onClick={() => navigate("/student/sos")}>
+              Emergency SOS
+            </button>
+          </div>
         </div>
 
         <div className="card">

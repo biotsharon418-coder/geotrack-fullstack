@@ -50,6 +50,7 @@ export default function OsasLayout() {
             ["/osas/verification",   "Boarding house verification"],
             ["/osas/reviews",        "Student reviews"],
             ["/osas/concerns",       "Reported concerns"],
+            ["/osas/emergencies",    "Emergency / SOS cases"],
             ["/osas/reports",        "Reports"],
             ["/osas/audit-logs",     "Activity logs"],
             ["/osas/accounts",       "Account management"],

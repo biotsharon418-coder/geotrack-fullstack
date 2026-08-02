@@ -11,6 +11,7 @@ import StudentStatus    from "./pages/student/StudentStatus";
 import StudentDirectory from "./pages/student/StudentDirectory";
 import DormDetail       from "./pages/student/DormDetail";
 import StudentConcern   from "./pages/student/StudentConcern";
+import StudentSOS       from "./pages/student/StudentSOS";
 import StudentProfile   from "./pages/student/StudentProfile";
 import ForgotPassword   from "./pages/student/ForgotPassword";
 import ResetPassword    from "./pages/student/ResetPassword";
@@ -25,6 +26,7 @@ import OsasStatusUpdates  from "./pages/osas/OsasStatusUpdates";
 import OsasVerification   from "./pages/osas/OsasVerification";
 import OsasReviews        from "./pages/osas/OsasReviews";
 import OsasConcerns       from "./pages/osas/OsasConcerns";
+import OsasEmergencies    from "./pages/osas/OsasEmergencies";
 import OsasReports        from "./pages/osas/OsasReports";
 import OsasAccounts       from "./pages/osas/OsasAccounts";
 import OsasAuditLogs      from "./pages/osas/OsasAuditLogs";
@@ -52,6 +54,7 @@ export default function App() {
             <Route path="directory"        element={<StudentDirectory />} />
             <Route path="directory/:houseId" element={<DormDetail />} />
             <Route path="concern"          element={<StudentConcern />} />
+            <Route path="sos"              element={<StudentSOS />} />
             <Route path="profile"          element={<StudentProfile />} />
           </Route>
 
@@ -67,6 +70,7 @@ export default function App() {
             <Route path="verification"   element={<OsasVerification />} />
             <Route path="reviews"        element={<OsasReviews />} />
             <Route path="concerns"       element={<OsasConcerns />} />
+            <Route path="emergencies"    element={<OsasEmergencies />} />
             <Route path="reports"        element={<OsasReports />} />
             <Route path="accounts"       element={<OsasAccounts />} />
             <Route path="audit-logs"     element={<OsasAuditLogs />} />

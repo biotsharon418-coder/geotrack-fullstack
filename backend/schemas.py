@@ -3,7 +3,8 @@ import re
 from pydantic import BaseModel, EmailStr, field_validator
 from typing import Optional, Literal, List
 from datetime import datetime
-
+from typing import Optional
+from pydantic import BaseModel
 
 def validate_strong_password(v: str) -> str:
     """8-12 characters, upper, lower, number, special character."""
@@ -223,8 +224,73 @@ class AuditLogOut(BaseModel):
 class DashboardStats(BaseModel):
     total_students: int; updates_submitted: int
     flagged_students: int; pending_verifications: int
+    active_emergencies: int = 0
     by_gender: List[dict]          # [{label, count}]
     by_department: List[dict]
     by_barangay: List[dict]
     by_status: List[dict]
     recent_activities: List[dict]  # last 10 audit log entries
+
+class StudentComplianceOut(BaseModel):
+    id: int
+    student_id: int
+    month: str
+    year: int
+    submission_status: str
+    submitted_at: Optional[datetime]
+    deadline: datetime
+    remarks: Optional[str]
+
+    class Config:
+        from_attributes = True
+
+
+class StudentFlagOut(BaseModel):
+    id: int
+    student_id: int
+    missed_count: int
+    compliance_status: str
+    is_flagged: bool
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+# ─── Emergency / SOS ──────────────────────────────────────────────────────────
+class SOSCreate(BaseModel):
+    category: str
+    details: Optional[str] = None
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
+
+class EmergencyStatusUpdate(BaseModel):
+    status: str
+    note: Optional[str] = None
+
+class EmergencyNoteCreate(BaseModel):
+    note: str
+
+class EmergencyTimelineOut(BaseModel):
+    id: int
+    actor_name: str
+    actor_role: str
+    event: str
+    note: Optional[str] = None
+    created_at: datetime
+    class Config: from_attributes = True
+
+class EmergencyCaseOut(BaseModel):
+    id: int
+    student_id: int
+    student_name: Optional[str] = None
+    student_email: Optional[str] = None
+    category: str
+    details: Optional[str] = None
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
+    status: str
+    created_at: datetime
+    resolved_at: Optional[datetime] = None
+    timeline: List[EmergencyTimelineOut] = []
+    class Config: from_attributes = True
