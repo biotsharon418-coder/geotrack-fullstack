@@ -123,10 +123,12 @@
   .student-body{ padding:8px 32px 24px; }
 }
 
-/* ============ DESKTOP (900px+): full web-app treatment matching the OSAS
-   admin dashboard's design language - a wide split-panel login (brand +
-   form side by side) and a widened, airier content shell instead of a
-   phone-width card. ============ */
+/* ============ DESKTOP (900px+): true full-bleed web-dashboard layout,
+   matching the OSAS admin shell exactly - a fixed dark sidebar flush against
+   the left edge and a content area that fills the rest of the browser
+   window. No more centered, rounded "phone card" floating on a tinted
+   background once we're at laptop/PC width. Login screen keeps its wide
+   split-panel (brand + form) treatment. ============ */
 @media (min-width:900px){
   .student-login-card{
     display:grid; grid-template-columns:1fr 1fr; max-width:920px;
@@ -148,88 +150,37 @@
      the dedicated brand panel is showing */
   .student-login-form > .brand-mark{ display:none; }
 
-  .student-shell{ padding:40px; }
+  /* ---- dashboard shell: identical structure to .osas-shell ---- */
+  .student-shell{
+    min-height:100vh; background:var(--paper); display:block; padding:0;
+  }
   .student-phone{
-    max-width:1040px; min-height:82vh; border-radius:22px;
-    flex-direction:row-reverse; overflow:hidden;
+    width:100%; max-width:none; min-height:100vh; border-radius:0; box-shadow:none;
+    flex-direction:row-reverse; overflow:visible; background:var(--paper);
   }
-  .student-main{ flex:1; display:flex; flex-direction:column; min-width:0; overflow-y:auto; }
-  .student-header{ padding:32px 40px 14px; }
-  .student-body{ padding:8px 40px 32px; flex:1; overflow-y:visible; }
+  .student-main{ flex:1; display:flex; flex-direction:column; min-width:0; overflow-y:auto; max-height:100vh; }
+  .student-header{ padding:32px 40px 4px; flex-shrink:0; }
+  .student-header .greet{ font-size:13.5px; }
+  .student-header h2{ font-size:28px; }
+  .student-body{ padding:16px 40px 40px; flex:1; overflow-y:visible; }
+
+  /* ---- sidebar: identical structure to .osas-sidebar ---- */
   .bottom-nav{
-    width:220px; flex-shrink:0; flex-direction:column; justify-content:flex-start;
-    align-items:stretch; gap:6px; border-top:none; border-right:1px solid var(--line);
-    background:var(--card); padding:32px 16px;
+    width:240px; flex-shrink:0; flex-direction:column; justify-content:flex-start;
+    align-items:stretch; gap:4px; border-top:none; border-right:none;
+    background:linear-gradient(170deg,var(--moss-dark),var(--moss));
+    padding:28px 18px; color:#e9f1ec;
   }
-  .nav-btn{ flex-direction:row; justify-content:flex-start; gap:10px; font-size:13px; padding:10px 12px; border-radius:8px; }
-  .nav-btn.active{ background:#eef1e9; }
-}
-@media (min-width:900px){
-
-.student-phone{
-  background:var(--paper);
-}
-
-.bottom-nav{
-  background:
-    linear-gradient(
-      170deg,
-      var(--moss-dark),
-      var(--moss)
-    );
-  border-right:none;
-  padding:32px 18px;
-}
-
-
-.nav-btn{
-  display:flex;
-  align-items:center;
-  gap:10px;
-
-  padding:10px 12px;
-
-  border-radius:8px;
-
-  font-size:13.5px;
-  font-weight:500;
-
-  color:#c7d9cf;
-
-  text-decoration:none;
-
-  transition:background .15s ease;
-}
-
-
-.nav-btn .ic{
-  width:10px;
-  height:10px;
-  border-radius:50%;
-  background:#b7d2c4;
-}
-
-
-.nav-btn:hover{
-  background:rgba(255,255,255,.12);
-  color:white;
-}
-
-
-.nav-btn.active{
-  background:rgba(255,255,255,.12);
-  color:#fff;
-}
-
-.nav-btn:hover{
-    background:rgba(255,255,255,.06);
-}
-
-
-.nav-btn.active .ic{
-    background:var(--pin);
-}
-
+  .nav-btn{
+    display:flex; flex-direction:row; align-items:center; justify-content:flex-start;
+    gap:10px; font-size:13.5px; font-weight:500; padding:10px 12px; border-radius:8px;
+    color:#c7d9cf; text-decoration:none; transition:background .15s ease;
+  }
+  .nav-btn .ic{ width:6px; height:6px; border-radius:50%; background:#7fa291; flex-shrink:0; }
+  .nav-btn:hover{ background:rgba(255,255,255,.08); color:#fff; }
+  .nav-btn.active{ background:rgba(255,255,255,.12); color:#fff; }
+  .nav-btn.active .ic{ background:var(--pin); }
+  .student-signout-btn{ margin-top:auto; }
 }
 .student-signout-card {
   margin-bottom: 90px;
@@ -269,7 +220,7 @@
     margin:18px 0;
 }
 
-.student-brand{
+.student-sidebar-brand{
     color:#cfe0d7;
     margin-bottom:18px;
 }
