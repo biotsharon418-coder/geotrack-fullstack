@@ -47,11 +47,15 @@ export default function OsasLayout() {
           {[
             ["/osas/dashboard",      "Geo-map overview"],
             ["/osas/status-updates", "Student status monitor"],
+            ["/osas/compliance",     "Compliance monitoring"],
+            ["/osas/risk-assessment","Risk assessment"],
             ["/osas/verification",   "Boarding house verification"],
+            ["/osas/inspections",    "Inspections"],
             ["/osas/reviews",        "Student reviews"],
             ["/osas/concerns",       "Reported concerns"],
             ["/osas/emergencies",    "Emergency / SOS cases"],
             ["/osas/reports",        "Reports"],
+            ["/osas/privacy",        "Privacy & announcements"],
             ["/osas/audit-logs",     "Activity logs"],
             ["/osas/accounts",       "Account management"],
           ].map(([to, label]) => (

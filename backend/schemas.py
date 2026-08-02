@@ -294,3 +294,89 @@ class EmergencyCaseOut(BaseModel):
     resolved_at: Optional[datetime] = None
     timeline: List[EmergencyTimelineOut] = []
     class Config: from_attributes = True
+
+# ─── Notifications ──────────────────────────────────────────────────────────
+class NotificationOut(BaseModel):
+    id: int
+    category: str
+    title: str
+    message: str
+    is_read: bool
+    created_at: datetime
+    class Config: from_attributes = True
+
+class AnnouncementCreate(BaseModel):
+    title: str
+    message: str
+
+
+# ─── Inspections ────────────────────────────────────────────────────────────
+class ChecklistItem(BaseModel):
+    item: str
+    passed: bool = True
+    note: Optional[str] = None
+
+class InspectionPhoto(BaseModel):
+    caption: str
+    url: Optional[str] = None
+
+class InspectionCreate(BaseModel):
+    boarding_house_id: int
+    inspector_name: str
+    scheduled_date: datetime
+
+class InspectionComplete(BaseModel):
+    checklist: List[ChecklistItem] = []
+    photos: List[InspectionPhoto] = []
+    remarks: Optional[str] = None
+    violations: Optional[str] = None
+    safety_rating: Optional[int] = None  # 1-5
+
+class InspectionOut(BaseModel):
+    id: int
+    boarding_house_id: int
+    boarding_house_name: Optional[str] = None
+    inspector_name: str
+    scheduled_date: datetime
+    status: str
+    checklist: Optional[list] = None
+    photos: Optional[list] = None
+    remarks: Optional[str] = None
+    violations: Optional[str] = None
+    safety_rating: Optional[int] = None
+    created_at: datetime
+    completed_at: Optional[datetime] = None
+    class Config: from_attributes = True
+
+
+# ─── Risk assessment ────────────────────────────────────────────────────────
+class RiskAssessmentOut(BaseModel):
+    student_id: int
+    student_name: str
+    email: str
+    course_section: Optional[str] = None
+    compliance_score: int          # 0-100, higher = better
+    missed_submissions: int
+    emergency_count: int
+    open_concern_count: int
+    is_flagged: bool
+    risk_score: int                # 0-100, higher = riskier
+    risk_level: str                # Low | Medium | High | Critical
+
+
+# ─── Consent ─────────────────────────────────────────────────────────────────
+class ConsentSubmit(BaseModel):
+    data_privacy_agreed: bool
+    location_sharing_agreed: bool
+
+class ConsentOut(BaseModel):
+    data_privacy_agreed: bool
+    location_sharing_agreed: bool
+    agreed_at: Optional[datetime] = None
+    policy_version: str
+    class Config: from_attributes = True
+
+class ConsentAdminOut(ConsentOut):
+    student_id: int
+    student_name: str
+    email: str

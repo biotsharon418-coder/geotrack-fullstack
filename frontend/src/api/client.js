@@ -100,6 +100,11 @@ export const api = {
   myEmergencies:      ()        => request("/student/sos"),
   emergencyDetail:    id        => request(`/student/sos/${id}`),
   cancelEmergency:    id        => request(`/student/sos/${id}/cancel`,{method:"PATCH"}),
+  myNotifications:    ()        => request("/student/notifications"),
+  markNotificationRead: id      => request(`/student/notifications/${id}/read`,{method:"PATCH"}),
+  markAllNotificationsRead: ()  => request("/student/notifications/read-all",{method:"PATCH"}),
+  getConsent:         ()        => request("/student/consent"),
+  submitConsent:      p         => request("/student/consent",{method:"POST",body:p}),
   },
 
   osas: {
@@ -139,6 +144,20 @@ export const api = {
 
   return `${API_BASE_URL}/osas/reports/export/${fmt}?${p}`;
 },
+    sendAnnouncement:   p             => request("/osas/announcements",{method:"POST",body:p}),
+    riskAssessment:     ()            => request("/osas/risk-assessment"),
+    riskAssessmentDetail: sid         => request(`/osas/risk-assessment/${sid}`),
+    listInspections:    (params={})   => { const q=new URLSearchParams(Object.fromEntries(Object.entries(params).filter(([,v])=>v!=null&&v!==""))); return request(`/osas/inspections?${q}`); },
+    scheduleInspection: p             => request("/osas/inspections",{method:"POST",body:p}),
+    completeInspection: (iid,p)       => request(`/osas/inspections/${iid}/complete`,{method:"PATCH",body:p}),
+    cancelInspection:   iid           => request(`/osas/inspections/${iid}/cancel`,{method:"PATCH"}),
+    deleteInspection:   iid           => request(`/osas/inspections/${iid}`,{method:"DELETE"}),
+    consentLogs:        ()            => request("/osas/consent-logs"),
+    complianceHistory:  (params={})   => { const q=new URLSearchParams(Object.fromEntries(Object.entries(params).filter(([,v])=>v!=null&&v!==""))); return request(`/osas/compliance/history?${q}`); },
+    complianceReport:   (params={})   => { const q=new URLSearchParams(Object.fromEntries(Object.entries(params).filter(([,v])=>v!=null&&v!==""))); return request(`/osas/compliance/report?${q}`); },
+    sendComplianceReminders: ()       => request("/osas/compliance/send-reminders",{method:"POST"}),
+    checkMissedSubmissions: ()        => request("/osas/compliance/check-missed",{method:"POST"}),
+    updateComplianceFlags: ()         => request("/osas/compliance/update-flags",{method:"POST"}),
 
 },
 

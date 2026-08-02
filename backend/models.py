@@ -234,3 +234,67 @@ class EmergencyTimelineEntry(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
 
     case = relationship("EmergencyCase", back_populates="timeline")
+
+
+class Notification(Base):
+    """In-app notification/reminder for a student or OSAS admin. Powers the
+    Automated Notification and Reminder Module: monthly reminders, final
+    reminders, approval/rejection notices, emergency alerts, flagging
+    notices, and announcements all create rows here."""
+    __tablename__ = "notifications"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+
+    category = Column(String, nullable=False)   # monthly_reminder | final_reminder | approval |
+                                                  # rejection | emergency_alert | flagging | announcement
+    title = Column(String, nullable=False)
+    message = Column(Text, nullable=False)
+    is_read = Column(Boolean, default=False)
+
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    user = relationship("User")
+
+
+class Inspection(Base):
+    """One scheduled or completed inspection of a boarding house. Powers the
+    Boarding House Inspection Management Module."""
+    __tablename__ = "inspections"
+
+    id = Column(Integer, primary_key=True, index=True)
+    boarding_house_id = Column(Integer, ForeignKey("boarding_houses.id"), nullable=False)
+
+    inspector_name = Column(String, nullable=False)
+    scheduled_date = Column(DateTime, nullable=False)
+    status = Column(String, default="Scheduled")  # Scheduled | Completed | Cancelled
+
+    checklist = Column(JSON, nullable=True)     # list of {item, passed, note}
+    photos = Column(JSON, nullable=True)        # list of {caption, url}
+    remarks = Column(Text, nullable=True)
+    violations = Column(Text, nullable=True)
+    safety_rating = Column(Integer, nullable=True)  # 1-5
+
+    created_at = Column(DateTime, default=datetime.utcnow)
+    completed_at = Column(DateTime, nullable=True)
+
+    boarding_house = relationship("BoardingHouse")
+
+
+class ConsentRecord(Base):
+    """A student's acknowledgement of the Data Privacy Act (RA 10173) consent
+    form. Powers the Data Privacy and Consent Management Module — Audit
+    Trail and Access Logs are covered by the existing AuditLog table."""
+    __tablename__ = "consent_records"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), unique=True, nullable=False)
+
+    data_privacy_agreed = Column(Boolean, default=False)
+    location_sharing_agreed = Column(Boolean, default=False)
+    agreed_at = Column(DateTime, nullable=True)
+    policy_version = Column(String, default="1.0")
+
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    user = relationship("User")
