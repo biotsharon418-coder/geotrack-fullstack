@@ -16,9 +16,10 @@ from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 from sqlalchemy import and_, extract
 from datetime import datetime, timedelta
+from apscheduler.schedulers.background import BackgroundScheduler
 
 import models, schemas
-from database import engine, get_db, Base
+from database import engine, get_db, Base, SessionLocal
 from auth import hash_password, verify_password, create_access_token, require_student, require_osas_admin
 from models import (
     User,
@@ -51,6 +52,23 @@ ALLOWED_ORIGINS = [o.strip() for o in _origins_env.split(",") if o.strip()] or [
 ]
 app.add_middleware(CORSMiddleware, allow_origins=ALLOWED_ORIGINS,
                    allow_credentials=True, allow_methods=["*"], allow_headers=["*"])
+
+
+@app.on_event("startup")
+def _start_scheduler():
+    if not scheduler.running:
+        scheduler.start()
+        # Also fire once shortly after boot so the automatic behavior is
+        # visible immediately instead of waiting for the next 00:10 UTC run.
+        scheduler.add_job(_scheduled_compliance_sweep, "date",
+                          run_date=datetime.utcnow() + timedelta(seconds=20),
+                          id="compliance_sweep_initial", replace_existing=True)
+
+
+@app.on_event("shutdown")
+def _stop_scheduler():
+    if scheduler.running:
+        scheduler.shutdown(wait=False)
 
 MAX_FAILED = 5
 LOCKOUT_MINS = 5
@@ -132,6 +150,143 @@ def notify(db: Session, user_id: int, category: str, title: str, message: str):
     """Create an in-app notification for a student or OSAS admin."""
     db.add(models.Notification(user_id=user_id, category=category, title=title, message=message))
     db.commit()
+
+
+def _notify_osas_admins(db: Session, category: str, title: str, message: str):
+    """Broadcast an in-app notification to every OSAS admin account."""
+    admins = db.query(models.User).filter(models.User.role == "osas_admin").all()
+    for a in admins:
+        db.add(models.Notification(user_id=a.id, category=category, title=title, message=message))
+    db.commit()
+
+
+def _run_compliance_sweep(db: Session) -> dict:
+    """Automatic Student Compliance Monitoring sweep. This is the single
+    source of truth behind both the daily scheduled job and the OSAS
+    "Run automation now" button:
+      - creates this month's compliance record for every active student
+        the first time it's needed and sends the Monthly Reminder
+      - sends a Final Reminder a few days before the deadline if still
+        pending (deduped by checking for an existing notification)
+      - marks overdue Pending records as Missed and sends the missed notice
+      - increments/recomputes each student's missed-submission flag, and
+        auto-notifies the student + OSAS admins the moment someone crosses
+        the flagging threshold
+    Safe to run as often as you like: every step is idempotent.
+    """
+    now = datetime.utcnow()
+    month = now.strftime("%B")
+    year = now.year
+    deadline_date = datetime(year, now.month, COMPLIANCE_DEADLINE_DAY)
+    month_start = datetime(year, now.month, 1)
+
+    students = (db.query(models.User)
+                .filter(models.User.role == "student", models.User.archived_at.is_(None))
+                .all())
+
+    new_monthly_reminders = 0
+    final_reminders_sent = 0
+    newly_missed = 0
+    newly_flagged = 0
+
+    for student in students:
+        compliance = (db.query(models.StudentCompliance)
+                      .filter(models.StudentCompliance.student_id == student.id,
+                              models.StudentCompliance.month == month,
+                              models.StudentCompliance.year == year)
+                      .first())
+
+        if not compliance:
+            compliance = models.StudentCompliance(
+                student_id=student.id, month=month, year=year,
+                submission_status="Pending", deadline=deadline_date,
+                remarks="Waiting for submission",
+            )
+            db.add(compliance)
+            db.flush()
+            notify(db, student.id, "monthly_reminder", "Monthly status update due",
+                   f"Please submit your boarding house status update for {month} {year} "
+                   f"by the {COMPLIANCE_DEADLINE_DAY}th to stay compliant.")
+            new_monthly_reminders += 1
+            continue
+
+        if compliance.submission_status != "Pending":
+            continue
+
+        days_left = (deadline_date - now).days
+
+        if now > deadline_date:
+            compliance.submission_status = "Missed"
+            compliance.remarks = "Submission deadline missed"
+            notify(db, student.id, "final_reminder", "Submission deadline missed",
+                   f"You missed the {month} {year} boarding house status deadline. "
+                   "Please submit as soon as possible to avoid being flagged.")
+            newly_missed += 1
+
+            flag = db.query(models.StudentFlag).filter(models.StudentFlag.student_id == student.id).first()
+            if not flag:
+                flag = models.StudentFlag(student_id=student.id, missed_count=0, compliance_status="Good")
+                db.add(flag)
+                db.flush()
+
+            was_flagged = flag.is_flagged
+            flag.missed_count += 1
+            if flag.missed_count >= 3:
+                flag.is_flagged = True
+                flag.compliance_status = "Flagged"
+                flag.reason = "Three or more missed monthly submissions"
+                if not was_flagged:
+                    newly_flagged += 1
+                    notify(db, student.id, "flagging", "Compliance flag raised",
+                           "You've been flagged by OSAS for missing three or more monthly "
+                           "boarding house status submissions. Please submit your status update "
+                           "as soon as possible.")
+                    _notify_osas_admins(db, "flagging", "Student automatically flagged",
+                                        f"{student.full_name} was auto-flagged after "
+                                        f"{flag.missed_count} missed monthly submissions.")
+
+        elif 0 <= days_left <= 3:
+            already_sent = (db.query(models.Notification)
+                             .filter(models.Notification.user_id == student.id,
+                                     models.Notification.category == "final_reminder",
+                                     models.Notification.created_at >= month_start)
+                             .first())
+            if not already_sent:
+                notify(db, student.id, "final_reminder", "Deadline approaching",
+                       f"Your {month} {year} boarding house status update is due in "
+                       f"{days_left} day(s). Submit now to avoid being marked missed.")
+                final_reminders_sent += 1
+
+    db.commit()
+    return {
+        "monthly_reminders_sent": new_monthly_reminders,
+        "final_reminders_sent": final_reminders_sent,
+        "newly_missed": newly_missed,
+        "newly_flagged": newly_flagged,
+    }
+
+
+def _scheduled_compliance_sweep():
+    """Wrapper the background scheduler calls on its own timer — opens and
+    closes its own DB session since it doesn't run inside a request."""
+    db = SessionLocal()
+    try:
+        result = _run_compliance_sweep(db)
+        log_action(db, None, "update", "compliance", None, None,
+                   f"Automatic sweep — {result['monthly_reminders_sent']} monthly reminders, "
+                   f"{result['final_reminders_sent']} final reminders, "
+                   f"{result['newly_missed']} newly missed, {result['newly_flagged']} newly flagged")
+    except Exception as exc:  # pragma: no cover - defensive logging only
+        db.rollback()
+        print(f"[scheduler] compliance sweep failed: {exc}")
+    finally:
+        db.close()
+
+
+scheduler = BackgroundScheduler(timezone="UTC")
+# Runs once a day; every step inside the sweep is idempotent so more frequent
+# runs (e.g. if the server restarts) never double-send a reminder.
+scheduler.add_job(_scheduled_compliance_sweep, "cron", hour=0, minute=10, id="compliance_sweep")
 
 
 def log_action(db: Session, actor: Optional[models.User], action: str,
@@ -589,6 +744,26 @@ def trigger_sos(payload: schemas.SOSCreate, db: Session = Depends(get_db),
     db.add(case); db.commit(); db.refresh(case)
     _log_timeline(db, case, user, "SOS triggered", payload.details)
     log_action(db, user, "create", "emergency", case.id, payload.category, "SOS triggered")
+    location_note = (f"Location: {payload.latitude:.5f}, {payload.longitude:.5f}"
+                     if payload.latitude is not None else "No location shared")
+    _notify_osas_admins(db, "sos_alert", f"SOS: {payload.category}",
+                        f"{user.full_name} triggered an emergency alert ({payload.category}). {location_note}.")
+    db.refresh(case)
+    return _emergency_out(case)
+
+@app.patch("/api/student/sos/{case_id}/location", response_model=schemas.EmergencyCaseOut)
+def update_sos_location(case_id: int, payload: schemas.SOSLocationUpdate,
+                        db: Session = Depends(get_db), user: models.User = Depends(require_student)):
+    """Live GPS sharing: while a case is Active/Responding, the student's app
+    calls this periodically so OSAS always sees an up-to-date position."""
+    case = db.query(models.EmergencyCase).get(case_id)
+    if not case or case.student_id != user.id: raise HTTPException(404, "Not found")
+    if case.status not in ("Active", "Responding"):
+        raise HTTPException(400, "This case is no longer active")
+    case.latitude = payload.latitude
+    case.longitude = payload.longitude
+    db.commit()
+    _log_timeline(db, case, user, "Location updated")
     db.refresh(case)
     return _emergency_out(case)
 
@@ -861,7 +1036,6 @@ def delete_concern(cid: int, db: Session = Depends(get_db), user: models.User = 
     db.delete(c); db.commit()
     return {"message": "Deleted"}
 
-@app.get("/api/osas/accounts", response_model=List[schemas.OsasAccountOut])
 @app.get("/api/osas/emergencies", response_model=List[schemas.EmergencyCaseOut])
 def list_emergencies(status: Optional[str] = None, db: Session = Depends(get_db),
                      user: models.User = Depends(require_osas_admin)):
@@ -907,6 +1081,7 @@ def add_emergency_note(case_id: int, payload: schemas.EmergencyNoteCreate,
     db.refresh(case)
     return _emergency_out(case)
 
+@app.get("/api/osas/accounts", response_model=List[schemas.OsasAccountOut])
 def list_osas_accounts(db: Session = Depends(get_db), user: models.User = Depends(require_osas_admin)):
     return db.query(models.User).filter(models.User.role == "osas_admin").all()
 
@@ -1148,6 +1323,23 @@ def compliance_status(
 
     return flag
 
+
+@app.post("/api/osas/compliance/run-automation")
+def run_compliance_automation_now(
+    db: Session = Depends(get_db),
+    user: models.User = Depends(require_osas_admin)
+):
+    """Manually trigger the same automatic sweep the scheduler runs daily at
+    00:10 UTC — creates missing monthly records + monthly reminders, sends
+    final reminders near the deadline, marks overdue ones Missed, and
+    updates/auto-notifies on new flags. Useful right after deploying or for
+    testing, but nothing needs to click this for the system to work."""
+    result = _run_compliance_sweep(db)
+    log_action(db, user, "update", "compliance", None, None,
+              f"Manual run — {result['monthly_reminders_sent']} monthly reminders, "
+              f"{result['final_reminders_sent']} final reminders, "
+              f"{result['newly_missed']} newly missed, {result['newly_flagged']} newly flagged")
+    return {"message": "Automation sweep completed.", **result}
 
 @app.post("/api/osas/compliance/send-reminders")
 def send_compliance_reminders(
@@ -1443,6 +1635,27 @@ def read_notification(nid: int, db: Session = Depends(get_db), user: models.User
 
 @app.patch("/api/student/notifications/read-all")
 def read_all_notifications(db: Session = Depends(get_db), user: models.User = Depends(require_student)):
+    db.query(models.Notification).filter(models.Notification.user_id == user.id,
+                                          models.Notification.is_read == False).update({"is_read": True})
+    db.commit()
+    return {"message": "All marked as read"}
+
+@app.get("/api/osas/notifications", response_model=List[schemas.NotificationOut])
+def osas_notifications(db: Session = Depends(get_db), user: models.User = Depends(require_osas_admin)):
+    return (db.query(models.Notification)
+            .filter(models.Notification.user_id == user.id)
+            .order_by(models.Notification.created_at.desc()).all())
+
+@app.patch("/api/osas/notifications/{nid}/read")
+def osas_read_notification(nid: int, db: Session = Depends(get_db), user: models.User = Depends(require_osas_admin)):
+    n = db.query(models.Notification).filter(models.Notification.id == nid,
+                                               models.Notification.user_id == user.id).first()
+    if not n: raise HTTPException(404, "Not found")
+    n.is_read = True; db.commit()
+    return {"message": "Marked as read"}
+
+@app.patch("/api/osas/notifications/read-all")
+def osas_read_all_notifications(db: Session = Depends(get_db), user: models.User = Depends(require_osas_admin)):
     db.query(models.Notification).filter(models.Notification.user_id == user.id,
                                           models.Notification.is_read == False).update({"is_read": True})
     db.commit()

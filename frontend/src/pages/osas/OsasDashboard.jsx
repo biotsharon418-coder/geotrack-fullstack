@@ -45,12 +45,15 @@ export default function OsasDashboard() {
           {/* -- Stat cards -- */}
           <div className="osas-grid osas-stat-row">
             {[
-              { label:"Total students",       val:stats.total_students,         tag:"registered accounts",  color:"var(--ink)" },
-              { label:"Updates submitted",    val:stats.updates_submitted,      tag:"all-time total",       color:"var(--ink)" },
-              { label:"Flagged students",     val:stats.flagged_students,       tag:"needs follow-up",      color:"var(--pin)" },
-              { label:"Pending verifications",val:stats.pending_verifications,  tag:"boarding houses",      color:"var(--warn)" },
+              { label:"Total students",       val:stats.total_students,         tag:"registered accounts",  color:"var(--ink)", to:null },
+              { label:"Updates submitted",    val:stats.updates_submitted,      tag:"all-time total",       color:"var(--ink)", to:null },
+              { label:"Flagged students",     val:stats.flagged_students,       tag:"needs follow-up",      color:"var(--pin)", to:"/osas/compliance" },
+              { label:"Pending verifications",val:stats.pending_verifications,  tag:"boarding houses",      color:"var(--warn)", to:"/osas/verification" },
+              { label:"Active emergencies",   val:stats.active_emergencies,     tag:"SOS cases open now",   color:"var(--pin)", to:"/osas/emergencies" },
             ].map(s => (
-              <div className="card osas-stat-card" key={s.label}>
+              <div className="card osas-stat-card" key={s.label}
+                style={s.to ? { cursor:"pointer" } : undefined}
+                onClick={s.to ? () => navigate(s.to) : undefined}>
                 <div className="stat-label">{s.label}</div>
                 <div className="stat-num" style={{color:s.color}}>{s.val}</div>
                 <div className="stat-tag warn">{s.tag}</div>

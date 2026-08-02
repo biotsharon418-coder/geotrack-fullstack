@@ -100,6 +100,7 @@ export const api = {
   myEmergencies:      ()        => request("/student/sos"),
   emergencyDetail:    id        => request(`/student/sos/${id}`),
   cancelEmergency:    id        => request(`/student/sos/${id}/cancel`,{method:"PATCH"}),
+  updateSOSLocation:  (id,p)    => request(`/student/sos/${id}/location`,{method:"PATCH",body:p}),
   myNotifications:    ()        => request("/student/notifications"),
   markNotificationRead: id      => request(`/student/notifications/${id}/read`,{method:"PATCH"}),
   markAllNotificationsRead: ()  => request("/student/notifications/read-all",{method:"PATCH"}),
@@ -158,6 +159,10 @@ export const api = {
     sendComplianceReminders: ()       => request("/osas/compliance/send-reminders",{method:"POST"}),
     checkMissedSubmissions: ()        => request("/osas/compliance/check-missed",{method:"POST"}),
     updateComplianceFlags: ()         => request("/osas/compliance/update-flags",{method:"POST"}),
+    runComplianceAutomation: ()       => request("/osas/compliance/run-automation",{method:"POST"}),
+    myNotifications:    ()            => request("/osas/notifications"),
+    markNotificationRead: id          => request(`/osas/notifications/${id}/read`,{method:"PATCH"}),
+    markAllNotificationsRead: ()      => request("/osas/notifications/read-all",{method:"PATCH"}),
 
 },
 

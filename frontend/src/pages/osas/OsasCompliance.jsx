@@ -47,7 +47,12 @@ export default function OsasCompliance() {
       <div className="osas-main-head">
         <div>
           <div className="osas-main-title">Student compliance monitoring</div>
-          <div className="osas-main-sub">Monthly boarding-house status submissions, deadlines, and flags.</div>
+          <div className="osas-main-sub">
+            Monthly boarding-house status submissions, deadlines, and flags — this now runs
+            automatically every day at 00:10 UTC (new records, reminders, missed-detection, and
+            flagging all happen without anyone clicking a button). Use the actions below to run it
+            early or to trigger one step on its own.
+          </div>
         </div>
       </div>
 
@@ -64,7 +69,11 @@ export default function OsasCompliance() {
       <div className="card" style={{ marginBottom: 20 }}>
         <div className="panel-title">Compliance actions</div>
         <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-          <button className="btn primary" disabled={busy} onClick={() => runAction(api.osas.sendComplianceReminders, "Reminders sent")}>
+          <button className="btn primary" disabled={busy}
+            onClick={() => runAction(api.osas.runComplianceAutomation, "Automation sweep")}>
+            Run automation now
+          </button>
+          <button className="btn" disabled={busy} onClick={() => runAction(api.osas.sendComplianceReminders, "Reminders sent")}>
             Send monthly reminders
           </button>
           <button className="btn" disabled={busy} onClick={() => runAction(api.osas.checkMissedSubmissions, "Missed-submission check")}>

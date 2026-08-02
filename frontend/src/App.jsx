@@ -36,6 +36,7 @@ import OsasCompliance     from "./pages/osas/OsasCompliance";
 import OsasRiskAssessment from "./pages/osas/OsasRiskAssessment";
 import OsasInspections    from "./pages/osas/OsasInspections";
 import OsasPrivacy        from "./pages/osas/OsasPrivacy";
+import OsasNotifications  from "./pages/osas/OsasNotifications";
 
 export default function App() {
   return (
@@ -82,6 +83,7 @@ export default function App() {
             <Route path="reviews"        element={<OsasReviews />} />
             <Route path="concerns"       element={<OsasConcerns />} />
             <Route path="emergencies"    element={<OsasEmergencies />} />
+            <Route path="notifications"  element={<OsasNotifications />} />
             <Route path="reports"        element={<OsasReports />} />
             <Route path="privacy"        element={<OsasPrivacy />} />
             <Route path="accounts"       element={<OsasAccounts />} />

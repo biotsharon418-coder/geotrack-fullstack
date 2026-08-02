@@ -264,6 +264,10 @@ class SOSCreate(BaseModel):
     latitude: Optional[float] = None
     longitude: Optional[float] = None
 
+class SOSLocationUpdate(BaseModel):
+    latitude: float
+    longitude: float
+
 class EmergencyStatusUpdate(BaseModel):
     status: str
     note: Optional[str] = None

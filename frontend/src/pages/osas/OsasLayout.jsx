@@ -3,6 +3,7 @@ import { useState } from "react";
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 import { useSessionTimeout } from "../../hooks/useSessionTimeout";
+import NotificationBell from "../../components/NotificationBell";
 import "./osas.css";
 
 export default function OsasLayout() {
@@ -65,6 +66,7 @@ export default function OsasLayout() {
             </NavLink>
           ))}
         </nav>
+        <NotificationBell role="osas" className="osas-nav-item" />
         <div className="osas-sidebar-spacer"></div>
         <button className="osas-logout-btn" onClick={() => handleLogout(true)}>
           Sign out ({fullName})
