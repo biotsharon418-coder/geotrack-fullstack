@@ -83,14 +83,15 @@ export default function StudentLayout() {
     <div className="ic"></div>Profile
   </NavLink>
 
-  {/* Spacer para itulak ang Sign Out sa pinakababa */}
-  <div style={{ flex: 1 }}></div>
+  {/* Spacer para itulak ang Sign Out sa pinakababa (desktop sidebar lang) */}
+  <div className="nav-spacer"></div>
 
   <button
     className="student-signout-btn"
     onClick={handleLogout}
   >
-    Sign out ({fullName})
+    <span className="signout-label">Sign out</span>
+    <span className="signout-name">&nbsp;({fullName})</span>
   </button>
 </div>
       </div>
